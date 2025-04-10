@@ -19,6 +19,12 @@ func ConnectToDb() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	database.AutoMigrate(&models.User{}) // Migrate the schema
+	//database.AutoMigrate(&models.User{})
+	database.AutoMigrate(&models.User{}, &models.Admin{})
+	database.AutoMigrate(&models.User{}, &models.Client{})
+	database.AutoMigrate(&models.Transaction{})
+	//database.AutoMigrate(&models.Admin{})
+	//database.AutoMigrate(&models.Client{})
 	DB = database
+
 }

@@ -11,8 +11,6 @@ import (
 	"time"
 )
 
-//func SignUp(w http.ResponseWriter, r *http.Request) {
-
 func SignUp(c *gin.Context) {
 	var body struct {
 		Username string `json:"username"`
@@ -43,7 +41,7 @@ func SignUp(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusCreated, gin.H{})
+	c.JSON(http.StatusCreated, gin.H{"userName": user.Username})
 }
 
 func Login(c *gin.Context) {
@@ -90,7 +88,7 @@ func Login(c *gin.Context) {
 
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("Authorization", tokenString, 3600*2, "", "", false, true)
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, gin.H{"status": "Login Success"})
 }
 
 func Validate(c *gin.Context) {
@@ -98,6 +96,7 @@ func Validate(c *gin.Context) {
 	user, _ := c.Get("user")
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": user,
+		"user":   user.(models.User).Username,
+		"status": "Valid",
 	})
 }
