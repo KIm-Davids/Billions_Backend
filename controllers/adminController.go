@@ -85,6 +85,7 @@ func GetTransactions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"transactions": transactions})
+	log.Printf("Fetched transactions: %+v\n", transactions)
 
 }
 
@@ -108,6 +109,5 @@ func GetUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
 		return
 	}
-	log.Printf("Fetched users: %+v\n", users)
 	c.JSON(http.StatusOK, users)
 }
