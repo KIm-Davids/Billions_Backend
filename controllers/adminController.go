@@ -87,3 +87,27 @@ func GetTransactions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"transactions": transactions})
 
 }
+
+func GetUsers(c *gin.Context) {
+	var users []models.User
+
+	user, exists := c.Get("user")
+
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized) // User not found in context
+		return
+	}
+
+	userID := user.(models.User).ID
+
+	if userID == 0 {
+		c.AbortWithStatus(http.StatusUnauthorized)
+	}
+
+	if err := initializers.DB.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+	log.Printf("Fetched users: %+v\n", users)
+	c.JSON(http.StatusOK, users)
+}

@@ -73,7 +73,40 @@ func CreateClient(c *gin.Context) {
 		"Client":  client,
 	})
 }
-func CreateTransaction(c *gin.Context) {
+func Deposit(c *gin.Context) {
+	var input models.Transaction
+
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	user, _ := c.Get("user")
+	userID := user.(models.User).ID
+	if userID == 0 {
+		c.AbortWithStatus(http.StatusUnauthorized)
+	}
+
+	tx := models.Transaction{
+		UserID:        userID,
+		SenderName:    input.SenderName,
+		SenderAddress: input.SenderAddress,
+		Type:          input.Type,
+		Status:        input.Status,
+		Amount:        input.Amount,
+		Description:   input.Description,
+		PackageType:   input.PackageType,
+	}
+
+	if err := initializers.DB.Create(&tx).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log transaction"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
+}
+
+func Withdraw(c *gin.Context) {
 	var input models.Transaction
 
 	err := c.ShouldBindJSON(&input)
@@ -105,12 +138,31 @@ func CreateTransaction(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
 
-func checkBalance(c *gin.Context) {
+func GetBalance(c *gin.Context) {
 
-	user, _ := c.Get("user")
+	user, exists := c.Get("user")
+
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized) // User not found in context
+		return
+	}
+
 	userID := user.(models.User).ID
+
 	if userID == 0 {
 		c.AbortWithStatus(http.StatusUnauthorized)
 	}
+
+	var dbUser models.Client
+	if err := initializers.DB.First(&dbUser, userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Send back the balance and last updated time
+	c.JSON(http.StatusOK, gin.H{
+		"balance":   dbUser.Balance,
+		"updatedAt": dbUser.UpdatedAt,
+	})
 
 }

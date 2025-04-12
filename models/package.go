@@ -1,7 +1,13 @@
 package models
 
-type Package struct {
-	TestPackage    float64 `json:"test-package"`
-	ProPackage     float64 `json:"pro-package"`
-	PremiumPackage float64 `json:"premium-package"`
+type Package string
+
+const (
+	TestPackage    Package = "Test"
+	ProPackage     Package = "Pro"
+	PremiumPackage Package = "Premium"
+)
+
+func (pck Package) EnumIndex() string {
+	return string(pck) // This now returns "Test", "Pro", or "Premium"
 }
