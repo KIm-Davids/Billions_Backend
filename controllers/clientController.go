@@ -82,7 +82,12 @@ func Deposit(c *gin.Context) {
 		return
 	}
 
-	user, _ := c.Get("user")
+	user, exists := c.Get("user")
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
 	userID := user.(models.User).ID
 	if userID == 0 {
 		c.AbortWithStatus(http.StatusUnauthorized)
