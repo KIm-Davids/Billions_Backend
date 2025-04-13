@@ -4,8 +4,11 @@ import (
 	"JWTProject/controllers"
 	"JWTProject/initializers"
 	"JWTProject/middleware"
+	"database/sql"
+	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"log"
 	"time"
 )
 
@@ -14,7 +17,60 @@ func init() {
 	initializers.ConnectToDb()
 	initializers.SyncDatabase()
 }
+
+// Transaction struct matches the table schema
+type Transaction struct {
+	UserID        uint      `json:"user_id"`
+	SenderName    string    `json:"senderName"`
+	SenderAddress string    `json:"senderAddress"`
+	Type          string    `json:"transactionType"`
+	Status        string    `json:"status"`
+	PackageType   string    `json:"packageType"`
+	Amount        float64   `json:"amount"`
+	Description   string    `json:"description"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+func createTableIfNotExists(db *sql.DB) {
+	// SQL query to create the table based on the Transaction struct
+	createTableQuery := `
+	CREATE TABLE IF NOT EXISTS transactions (
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		user_id INT NOT NULL,
+		sender_name VARCHAR(255) NOT NULL,
+		sender_address VARCHAR(255) NOT NULL,
+		transaction_type VARCHAR(100) NOT NULL,
+		status VARCHAR(50) NOT NULL,
+		package_type VARCHAR(100) NOT NULL,
+		amount DECIMAL(10,2) NOT NULL,
+		description TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	// Execute the query
+	_, err := db.Exec(createTableQuery)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	} else {
+		fmt.Println("Table checked/created successfully")
+	}
+}
+
 func main() {
+
+	// Online MySQL connection string (replace with your actual credentials)
+	dsn := "root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
+
+	// Connect to the MySQL database
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		log.Fatalf("Error connecting to the database: %v", err)
+	}
+	defer db.Close()
+
+	// Check if the table exists and create it if necessary
+	createTableIfNotExists(db)
+
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
@@ -33,8 +89,8 @@ func main() {
 	router.POST("/register/admin", controllers.RegisterAdmin)
 	router.POST("/register/client", controllers.CreateClient)
 	router.POST("/login", controllers.Login)
-	router.POST("/deposit", controllers.Deposit)
-	router.POST("/withdraw", controllers.Withdraw)
+	router.POST("/deposit", middleware.RequireAuth, controllers.Deposit)
+	router.POST("/withdraw", middleware.RequireAuth, controllers.Withdraw)
 	router.POST("/balance", middleware.RequireAuth, controllers.GetBalance)
 	router.GET("/validate", middleware.RequireAuth, controllers.Validate)
 	router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
@@ -42,3 +98,33 @@ func main() {
 
 	router.Run(":8080")
 }
+
+//func main() {
+//	router := gin.Default()
+//	router.POST("/signup", controllers.SignUp)
+//
+//	router.Use(cors.New(cors.Config{
+//		AllowOrigins:     []string{"http://localhost:3000"},
+//		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+//		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+//		ExposeHeaders:    []string{"Content-Length"},
+//		AllowCredentials: true,
+//		MaxAge:           12 * time.Hour,
+//	}))
+//
+//	adminRoutes := router.Group("/admin")
+//	adminRoutes.Use(middleware.RequireAuth, middleware.IsAdminMiddleware())
+//
+//	router.POST("/register/admin", controllers.RegisterAdmin)
+//	router.POST("/register/client", controllers.CreateClient)
+//	router.POST("/login", controllers.Login)
+//	router.POST("/deposit", middleware.RequireAuth, controllers.CreateTransaction)
+//	router.POST("/withdraw", middleware.RequireAuth, controllers.CreateTransaction)
+//	router.GET("/validate", middleware.RequireAuth, controllers.Validate)
+//	router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
+//
+//	router.Run()
+//	router.Run(":8080")
+//}
+
+//database url
