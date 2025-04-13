@@ -74,20 +74,21 @@ func RegisterAdmin(c *gin.Context) {
 	})
 }
 
-func GetTransactions(c *gin.Context) {
-
-	var transactions []models.Transaction
-	//if err := initializers.DB.Find(&transactions).Error; err != nil {
-
-	if err := initializers.DB.Order("created_at desc").Find(&transactions).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not retrieve transactions"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"transactions": transactions})
-	log.Printf("Fetched transactions: %+v\n", transactions)
-
-}
+//
+//func GetTransactions(c *gin.Context) {
+//
+//	var transactions []models.Transaction
+//	//if err := initializers.DB.Find(&transactions).Error; err != nil {
+//
+//	if err := initializers.DB.Order("created_at desc").Find(&transactions).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not retrieve transactions"})
+//		return
+//	}
+//
+//	c.JSON(http.StatusOK, gin.H{"transactions": transactions})
+//	log.Printf("Fetched transactions: %+v\n", transactions)
+//
+//}
 
 func GetUsers(c *gin.Context) {
 	var users []models.User
