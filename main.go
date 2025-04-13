@@ -93,7 +93,7 @@ func main() {
 	router.POST("/withdraw", middleware.RequireAuth, controllers.Withdraw)
 	router.POST("/balance", middleware.RequireAuth, controllers.GetBalance)
 	router.GET("/validate", middleware.RequireAuth, controllers.Validate)
-	router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
+	//router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
 	router.GET("/get/users", middleware.RequireAuth, controllers.GetUsers)
 
 	router.Run(":8080")
