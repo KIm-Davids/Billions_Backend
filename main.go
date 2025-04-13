@@ -18,7 +18,8 @@ func main() {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://www.billionsforextrade.vip"},
+		AllowOrigins: []string{"https://www.billionsforextrade.vip", "https://www.billionsforextrade.vip/"},
+		//AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -32,8 +33,8 @@ func main() {
 	router.POST("/register/admin", controllers.RegisterAdmin)
 	router.POST("/register/client", controllers.CreateClient)
 	router.POST("/login", controllers.Login)
-	router.POST("/deposit", middleware.RequireAuth, controllers.Deposit)
-	router.POST("/withdraw", middleware.RequireAuth, controllers.Withdraw)
+	router.POST("/deposit", controllers.Deposit)
+	router.POST("/withdraw", controllers.Withdraw)
 	router.POST("/balance", middleware.RequireAuth, controllers.GetBalance)
 	router.GET("/validate", middleware.RequireAuth, controllers.Validate)
 	router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
