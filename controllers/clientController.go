@@ -74,37 +74,42 @@ func CreateClient(c *gin.Context) {
 	})
 }
 func Deposit(c *gin.Context) {
-	var input models.Transaction
+	var input models.Deposit
+	var existingTx models.Deposit
 
 	err := c.ShouldBindJSON(&input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	userRaw, exists := c.Get("user")
-	if !exists {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+	//userRaw, exists := c.Get("user")
+	//if !exists {
+	//	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+	//	return
+	//}
+	//
+	//user, ok := userRaw.(models.User) // or *models.User if you stored a pointer
+	//if !ok || user.ID == 0 {
+	//	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid user object"})
+	//	return
+	//}
+
+	if err := initializers.DB.Where("hash = ?", input.Hash).First(&existingTx).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Transaction hash already exists"})
 		return
 	}
 
-	user, ok := userRaw.(models.User) // or *models.User if you stored a pointer
-	if !ok || user.ID == 0 {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid user object"})
-		return
+	tx := models.Deposit{
+		UserID:      input.UserID,
+		SenderName:  input.SenderName,
+		Hash:        input.Hash,
+		Status:      input.Status,
+		Amount:      input.Amount,
+		CreatedAt:   input.CreatedAt,
+		PackageType: input.PackageType,
 	}
 
-	tx := models.Transaction{
-		UserID:        user.ID,
-		SenderName:    input.SenderName,
-		SenderAddress: input.SenderAddress,
-		Type:          input.Type,
-		Status:        input.Status,
-		Amount:        input.Amount,
-		Description:   input.Description,
-		PackageType:   input.PackageType,
-	}
-
-	refererInterest(user, input.Amount, c)
+	//refererInterest(, input.Amount, c)
 	if err := initializers.DB.Create(&tx).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log transaction"})
 		return
@@ -113,7 +118,7 @@ func Deposit(c *gin.Context) {
 }
 
 func Withdraw(c *gin.Context) {
-	var input models.Transaction
+	var input models.Withdraw
 
 	err := c.ShouldBindJSON(&input)
 	if err != nil {
@@ -127,14 +132,15 @@ func Withdraw(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 	}
 
-	tx := models.Transaction{
+	tx := models.Withdraw{
 		UserID:        userID,
 		SenderName:    input.SenderName,
 		SenderAddress: input.SenderAddress,
-		Type:          input.Type,
+		WalletType:    input.WalletType,
 		Status:        input.Status,
 		Amount:        input.Amount,
 		Description:   input.Description,
+		CreatedAt:     input.CreatedAt,
 	}
 
 	if err := initializers.DB.Create(&tx).Error; err != nil {
@@ -144,23 +150,23 @@ func Withdraw(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
 
-func refererInterest(user models.User, amount float64, c *gin.Context) {
-	var client models.Client
-	if err := initializers.DB.Where("user_id = ?", user.ID).First(&client).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Client not found"})
-		return
-	}
-
-	//if client.Balance <= 0 && !client.RefererInterestApplied {
-	//	interest := amount * 0.05
-	//	client.Balance += interest
-	//	client.RefererInterestApplied = true
-
-	if err := initializers.DB.Save(&client).Error; err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Unable to update client balance"})
-		return
-	}
-}
+//func refererInterest(user models.User, amount float64, c *gin.Context) {
+//	var client models.Client
+//	if err := initializers.DB.Where("user_id = ?", user.ID).First(&client).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "Client not found"})
+//		return
+//	}
+//
+//	//if client.Balance <= 0 && !client.RefererInterestApplied {
+//	//	interest := amount * 0.05
+//	//	client.Balance += interest
+//	//	client.RefererInterestApplied = true
+//
+//	if err := initializers.DB.Save(&client).Error; err != nil {
+//		c.JSON(http.StatusConflict, gin.H{"error": "Unable to update client balance"})
+//		return
+//	}
+//}
 
 func GetBalance(c *gin.Context) {
 
