@@ -95,7 +95,7 @@ func main() {
 	router.GET("/validate", controllers.Validate)
 	//router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
 	//router.GET("/get/users", controllers.GetUsers)
-	router.POST("/referralCode", controllers.GetReferralCode)
+	//router.POST("/referralCode", controllers.GetReferralCode)
 	router.POST("/withdrawDate", controllers.GetWithdrawDate)
 	router.PATCH("/admin/update/usersBalance", controllers.UpdateUserBalance)
 	router.POST("/getUserInfo", controllers.GetUserInfo)
