@@ -409,7 +409,7 @@ func GetWithdrawDate(c *gin.Context) {
 	// Fetch the user's latest deposit
 	var deposit models.Deposit
 	if err := initializers.DB.
-		Where("user_id = ?", user.ID).
+		Where("email = ?", user.ID).
 		Order("created_at desc").
 		First(&deposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
@@ -473,5 +473,6 @@ func GetUserInfo(c *gin.Context) {
 		"balance":      user.Balance,
 		"packages":     user.Package,
 		"referralCode": user.ReferID,
+		//"withdrawDate": user.
 	})
 }

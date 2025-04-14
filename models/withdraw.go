@@ -11,4 +11,5 @@ type Withdraw struct {
 	Amount        float64   `json:"amount"`
 	CreatedAt     time.Time `json:"created_at"`
 	Description   string    `json:"description"`
+	//WithdrawDate
 }

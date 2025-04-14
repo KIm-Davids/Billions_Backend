@@ -273,3 +273,27 @@ func ConfirmDeposit(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Deposit confirmed and balance updated"})
 }
+
+func GetAllDeposits(c *gin.Context) {
+	// Get admin email from query or token (here we're using query for simplicity)
+	adminEmail := c.Query("email")
+	if adminEmail == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	// Check if email is admin
+	if adminEmail != "admin@example.com" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: admin access only"})
+		return
+	}
+
+	// Get all deposits
+	var deposits []models.Deposit
+	if err := initializers.DB.Order("created_at desc").Find(&deposits).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposits"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"deposits": deposits})
+}
