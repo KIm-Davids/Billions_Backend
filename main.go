@@ -101,7 +101,7 @@ func main() {
 	router.POST("/getUserInfo", controllers.GetUserInfo)
 	router.POST("/getAllUser", controllers.GetAllUsers)
 	router.POST("/confirmDeposits", controllers.ConfirmDeposit)
-	router.POST("/fetchDeposits", controllers.GetAllDeposits)
+	router.GET("/fetchDeposits", controllers.GetAllDeposits)
 
 	router.Run(":8080")
 
