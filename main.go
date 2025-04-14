@@ -99,6 +99,8 @@ func main() {
 	router.POST("/withdrawDate", controllers.GetWithdrawDate)
 	router.PATCH("/admin/update/usersBalance", controllers.UpdateUserBalance)
 	router.POST("/getUserInfo", controllers.GetUserInfo)
+	router.POST("/getAllUser", controllers.GetAllUsers)
+	router.POST("/confirmDeposits", controllers.ConfirmDeposit)
 
 	router.Run(":8080")
 

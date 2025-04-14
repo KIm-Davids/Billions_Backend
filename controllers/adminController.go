@@ -5,6 +5,7 @@ import (
 	"JWTProject/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"strings"
@@ -205,4 +206,70 @@ func UpdateUserBalance(c *gin.Context) {
 		"message": "User and transaction (if any) updated successfully",
 		"user":    user,
 	})
+}
+
+func GetAllUsers(c *gin.Context) {
+	var users []models.User
+	db := c.MustGet("db").(*gorm.DB)
+
+	if err := db.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch users",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
+}
+
+func ConfirmDeposit(c *gin.Context) {
+	type ConfirmRequest struct {
+		Email     string `json:"email"`
+		DepositID uint   `json:"deposit_id"` // Or use other identifier
+	}
+
+	var req ConfirmRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Find the user
+	var user models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Find the deposit record that belongs to this user and is still pending
+	var deposit models.Deposit
+	if err := initializers.DB.
+		Where("user_id = ? AND status = ?", user.ID, "pending").
+		First(&deposit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found or already confirmed"})
+		return
+	}
+	// Update deposit status
+	deposit.Status = "confirmed"
+
+	// Update user balance
+	user.Balance += deposit.Amount
+
+	// Save both updates in a transaction
+	tx := initializers.DB.Begin()
+	if err := tx.Save(&deposit).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update deposit status"})
+		return
+	}
+
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+		return
+	}
+
+	tx.Commit()
+
+	c.JSON(http.StatusOK, gin.H{"message": "Deposit confirmed and balance updated"})
 }
