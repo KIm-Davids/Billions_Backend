@@ -451,7 +451,7 @@ func GetUserInfo(c *gin.Context) {
 
 	var user models.User
 	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "server side error User not found"})
 		return
 	}
 
