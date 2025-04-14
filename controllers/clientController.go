@@ -373,7 +373,7 @@ func GetUserInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"balance": user.Balance,
-		"package": user.Package,
+		"balance":     user.Balance,
+		"packageType": user.Package,
 	})
 }
