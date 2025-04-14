@@ -10,8 +10,8 @@ type User struct {
 	Password string `json:"password"`
 	//Address    string `json:"address"` //gorm:"unique"`
 	//Role       string `json:"role"`
-	ReferrerID *uint   `json:"referrerId"`
-	Referer    string  `json:"referrer" gorm:"unique"`
+	ReferID    *uint   `json:"referrerId"`
+	ReferredBy *uint   `json:"referrer" gorm:"unique"`
 	Balance    float64 `json:"balance"`
 	Package    string  `json:"package,omitempty"`
 }

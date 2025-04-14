@@ -13,15 +13,86 @@ import (
 	"time"
 )
 
+//func CreateClient(c *gin.Context) {
+//	var req struct {
+//		Username string `json:"username"`
+//		Email    string `json:"email"`
+//		Password string `json:"password"`
+//	}
+//
+//	if err := c.ShouldBindJSON(&req); err != nil {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+//		return
+//	}
+//
+//	// Hash the password
+//	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+//	if err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+//		return
+//	}
+//
+//	//address, err := utils.GenerateAddress(10)
+//	if err != nil {
+//		log.Fatal("Error generating address:", err)
+//	}
+//	// Create the client
+//	user := models.User{
+//		Username: req.Username,
+//		Email:    req.Email,
+//		Password: string(hashedPassword),
+//	}
+//
+//	if err := initializers.DB.Create(&user).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+//		return
+//	}
+//
+//	ref, err := utils.GenerateAddress(5)
+//	if err != nil {
+//		log.Fatal("Error generating address:", err)
+//	}
+//	// Create the client profile
+//	client := models.User{
+//		UserID:     user.ID,
+//		ReferrerID: ref,
+//		Balance:    0.00,
+//	}
+//
+//	if err := initializers.DB.Create(&client).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create client profile"})
+//		return
+//	}
+//
+//	if err := initializers.DB.Preload("User").First(&client, client.ID).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load client with user info"})
+//		return
+//	}
+//
+//	c.JSON(http.StatusCreated, gin.H{
+//		"message": "Client created successfully",
+//		"Client":  client,
+//	})
+//}
+
 func CreateClient(c *gin.Context) {
 	var req struct {
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Username   string `json:"username"`
+		Email      string `json:"email"`
+		Password   string `json:"password"`
+		ReferredBy *uint  `json:"referral"` // referral ID entered by user (can be null)
 	}
 
+	// Validate input
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Check if email already exists
+	var existingUser models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Email already in use"})
 		return
 	}
 
@@ -32,16 +103,26 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
-	//address, err := utils.GenerateAddress(10)
-	if err != nil {
-		log.Fatal("Error generating address:", err)
+	// Generate unique referral ID
+	var referID *uint
+	for {
+		temp := utils.GenerateReferralCode()
+		var count int64
+		initializers.DB.Model(&models.User{}).Where("refer_id = ?", temp).Count(&count)
+		if count == 0 {
+			referID = temp
+			break
+		}
 	}
-	// Create the client
+
+	// Create user
 	user := models.User{
-		Username: req.Username,
-		Email:    req.Email,
-		Password: string(hashedPassword),
-		// 👈 Important
+		Username:   req.Username,
+		Email:      req.Email,
+		Password:   string(hashedPassword),
+		ReferID:    referID,
+		ReferredBy: req.ReferredBy,
+		Balance:    0.0,
 	}
 
 	if err := initializers.DB.Create(&user).Error; err != nil {
@@ -49,32 +130,19 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
-	ref, err := utils.GenerateAddress(5)
-	if err != nil {
-		log.Fatal("Error generating address:", err)
-	}
-	// Create the client profile
-	client := models.User{
-		UserID:  user.ID,
-		Referer: ref,
-		Balance: 0.00,
-	}
-
-	if err := initializers.DB.Create(&client).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create client profile"})
-		return
-	}
-
-	if err := initializers.DB.Preload("User").First(&client, client.ID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load client with user info"})
-		return
-	}
-
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Client created successfully",
-		"Client":  client,
+		"message": "User created successfully",
+		"user": gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"refer_id":   user.ReferID,
+			"referredBy": user.ReferredBy,
+			"balance":    user.Balance,
+		},
 	})
 }
+
 func Deposit(c *gin.Context) {
 	var input models.Deposit
 	var existingTx models.Deposit
@@ -92,9 +160,9 @@ func Deposit(c *gin.Context) {
 	if depositCount == 0 {
 		var user models.User
 		// Get the user by input.UserID (this is the referred user)
-		if err := initializers.DB.First(&user, input.UserID).Error; err == nil && user.ReferrerID != nil {
+		if err := initializers.DB.First(&user, input.UserID).Error; err == nil && user.ReferID != nil {
 			// Reward the referrer (e.g., credit a bonus)
-			rewardReferrer(*user.ReferrerID, input.UserID, input.Amount)
+			rewardReferrer(*user.ReferID, input.UserID, input.Amount)
 		}
 	}
 
