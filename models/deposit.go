@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Deposit struct {
-	UserID      uint      `json:"user_id"`
+	UserID      string    `json:"user_id"`
 	Email       string    `json:"email"`
 	Hash        string    `json:"hash" gorm:"unique"`
 	Status      string    `json:"status"`
