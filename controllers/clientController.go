@@ -456,7 +456,8 @@ func GetUserInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"balance":     user.Balance,
-		"packageType": user.Package,
+		"balance":      user.Balance,
+		"packageType":  user.Package,
+		"referralCode": user.ReferID,
 	})
 }
