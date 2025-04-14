@@ -95,6 +95,7 @@ func main() {
 	router.GET("/validate", controllers.Validate)
 	//router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
 	//router.GET("/get/users", controllers.GetUsers)
+	router.GET("/getBalance", controllers.GetWithdrawDate)
 	router.PATCH("/update/usersBalance", controllers.UpdateUserBalance)
 
 	router.Run(":8080")

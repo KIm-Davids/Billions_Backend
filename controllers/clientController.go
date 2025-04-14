@@ -308,3 +308,53 @@ func GenerateDailyProfits() {
 //	})
 //
 //}
+
+func GetWithdrawDate(c *gin.Context) {
+	// You can receive email or user ID from query params
+	email := c.Query("email")
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	// Fetch the user by email
+	var user models.User
+	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Fetch the user's latest deposit
+	var deposit models.Deposit
+	if err := initializers.DB.
+		Where("user_id = ?", user.ID).
+		Order("created_at desc").
+		First(&deposit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
+		return
+	}
+
+	// Determine the number of days based on the package
+	var waitingDays int
+	switch strings.ToLower(user.Package) {
+	case "test":
+		waitingDays = 15
+	case "pro":
+		waitingDays = 30
+	case "premium":
+		waitingDays = 40
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
+		return
+	}
+
+	// Calculate withdraw date
+	withdrawDate := deposit.CreatedAt.Add(time.Duration(waitingDays) * 24 * time.Hour)
+
+	// Return the withdraw date
+	c.JSON(http.StatusOK, gin.H{
+		"withdraw_date": withdrawDate.Format("2006-01-02"),
+		"package":       user.Package,
+		"days_waiting":  waitingDays,
+	})
+}
