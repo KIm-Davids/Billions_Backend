@@ -80,7 +80,7 @@ func CreateClient(c *gin.Context) {
 		Username   string `json:"username"`
 		Email      string `json:"email"`
 		Password   string `json:"password"`
-		ReferredBy *uint  `json:"referral"` // referral ID entered by user (can be null)
+		ReferredBy string `json:"referral"` // referral ID entered by user (can be null)
 	}
 
 	// Validate input
@@ -104,9 +104,9 @@ func CreateClient(c *gin.Context) {
 	}
 
 	// Generate unique referral ID
-	var referID *uint
+	var referID string
 	for {
-		temp := utils.GenerateReferralCode()
+		temp, _ := utils.GenerateAddress(6)
 		var count int64
 		initializers.DB.Model(&models.User{}).Where("refer_id = ?", temp).Count(&count)
 		if count == 0 {
@@ -160,9 +160,9 @@ func Deposit(c *gin.Context) {
 	if depositCount == 0 {
 		var user models.User
 		// Get the user by input.UserID (this is the referred user)
-		if err := initializers.DB.First(&user, input.UserID).Error; err == nil && user.ReferID != nil {
+		if err := initializers.DB.First(&user, input.UserID).Error; err == nil && user.ReferID != "" {
 			// Reward the referrer (e.g., credit a bonus)
-			rewardReferrer(*user.ReferID, input.UserID, input.Amount)
+			rewardReferrer(user.ReferID, input.UserID, input.Amount)
 		}
 	}
 
@@ -269,7 +269,7 @@ func Withdraw(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
 
-func rewardReferrer(referrerID uint, referredID uint, depositAmount float64) {
+func rewardReferrer(referrerID string, referredID uint, depositAmount float64) {
 	bonusAmount := depositAmount * 0.05 // For example, 10% of the deposit amount as a bonus
 
 	// Update referrer's balance
