@@ -360,7 +360,22 @@ func GetWithdrawDate(c *gin.Context) {
 }
 
 func GetUserInfo(c *gin.Context) {
-	email := c.Query("email")
+
+	// Define a struct to hold the incoming data (email)
+	var requestData struct {
+		Email string `json:"email" binding:"required"`
+	}
+
+	// Parse the request body into the struct
+	if err := c.ShouldBindJSON(&requestData); err != nil {
+		// If the email is missing or invalid
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	// Now use the email from the requestData struct
+	email := requestData.Email
+
 	if email == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
 		return
