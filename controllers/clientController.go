@@ -358,3 +358,22 @@ func GetWithdrawDate(c *gin.Context) {
 		"days_waiting":  waitingDays,
 	})
 }
+
+func GetUserInfo(c *gin.Context) {
+	email := c.Query("email")
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	var user models.User
+	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"balance": user.Balance,
+		"package": user.Package,
+	})
+}

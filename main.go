@@ -97,6 +97,7 @@ func main() {
 	//router.GET("/get/users", controllers.GetUsers)
 	router.GET("/getBalance", controllers.GetWithdrawDate)
 	router.PATCH("/update/usersBalance", controllers.UpdateUserBalance)
+	router.GET("/getUserInfo", controllers.GetUserInfo)
 
 	router.Run(":8080")
 
