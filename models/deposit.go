@@ -4,7 +4,7 @@ import "time"
 
 type Deposit struct {
 	UserID      uint      `json:"user_id"`
-	SenderName  string    `json:"senderName"`
+	Email       string    `json:"email"`
 	Hash        string    `json:"hash" gorm:"unique"`
 	Status      string    `json:"status"`
 	PackageType string    `json:"packageType"`

@@ -118,7 +118,7 @@ func Deposit(c *gin.Context) {
 
 	tx := models.Deposit{
 		UserID:      input.UserID,
-		SenderName:  input.SenderName,
+		Email:       input.Email,
 		Hash:        input.Hash,
 		Status:      input.Status,
 		Amount:      input.Amount,
