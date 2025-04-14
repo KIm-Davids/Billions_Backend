@@ -202,11 +202,10 @@ func Deposit(c *gin.Context) {
 
 	// Update the user's balance
 	var user models.User
-	if err := initializers.DB.First(&user, input.Email).Error; err != nil {
+	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-
 	// Add the deposit amount to the user's balance
 	user.Balance += input.Amount
 	if err := initializers.DB.Save(&user).Error; err != nil {
