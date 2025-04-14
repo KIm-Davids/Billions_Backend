@@ -21,9 +21,11 @@ func ConnectToDb() {
 
 	//database.AutoMigrate(&models.User{})
 	database.AutoMigrate(&models.User{}, &models.Admin{})
-	database.AutoMigrate(&models.User{}, &models.Client{})
+	database.AutoMigrate(&models.User{}, &models.User{})
 	database.AutoMigrate(&models.Deposit{})
 	database.AutoMigrate(&models.Withdraw{})
+	database.AutoMigrate(&models.ReferralBonus{})
+
 	//database.AutoMigrate(&models.Admin{})
 	//database.AutoMigrate(&models.Client{})
 	DB = database

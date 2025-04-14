@@ -6,8 +6,11 @@ import (
 	"JWTProject/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 )
 
 func CreateClient(c *gin.Context) {
@@ -29,7 +32,7 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
-	address, err := utils.GenerateAddress(10)
+	//address, err := utils.GenerateAddress(10)
 	if err != nil {
 		log.Fatal("Error generating address:", err)
 	}
@@ -38,8 +41,7 @@ func CreateClient(c *gin.Context) {
 		Username: req.Username,
 		Email:    req.Email,
 		Password: string(hashedPassword),
-		Address:  address,
-		Role:     "client", // 👈 Important
+		// 👈 Important
 	}
 
 	if err := initializers.DB.Create(&user).Error; err != nil {
@@ -52,7 +54,7 @@ func CreateClient(c *gin.Context) {
 		log.Fatal("Error generating address:", err)
 	}
 	// Create the client profile
-	client := models.Client{
+	client := models.User{
 		UserID:  user.ID,
 		Referer: ref,
 		Balance: 0.00,
@@ -76,12 +78,26 @@ func CreateClient(c *gin.Context) {
 func Deposit(c *gin.Context) {
 	var input models.Deposit
 	var existingTx models.Deposit
+	var depositCount int64
 
 	err := c.ShouldBindJSON(&input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
+	// Check if it's the user's first deposit
+	initializers.DB.Model(&models.Deposit{}).Where("user_id = ?", input.UserID).Count(&depositCount)
+
+	// If it's the user's first deposit
+	if depositCount == 0 {
+		var user models.User
+		// Get the user by input.UserID (this is the referred user)
+		if err := initializers.DB.First(&user, input.UserID).Error; err == nil && user.ReferrerID != nil {
+			// Reward the referrer (e.g., credit a bonus)
+			rewardReferrer(*user.ReferrerID, input.UserID, input.Amount)
+		}
+	}
+
 	//userRaw, exists := c.Get("user")
 	//if !exists {
 	//	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -94,6 +110,7 @@ func Deposit(c *gin.Context) {
 	//	return
 	//}
 
+	// Check for duplicate transaction hash
 	if err := initializers.DB.Where("hash = ?", input.Hash).First(&existingTx).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Transaction hash already exists"})
 		return
@@ -120,34 +137,94 @@ func Deposit(c *gin.Context) {
 func Withdraw(c *gin.Context) {
 	var input models.Withdraw
 
-	err := c.ShouldBindJSON(&input)
-	if err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	user, _ := c.Get("user")
-	userID := user.(models.User).ID
-	if userID == 0 {
-		c.AbortWithStatus(http.StatusUnauthorized)
+	// Fetch the user's deposit info to get the deposit date using input.UserID
+	var deposit models.Deposit
+	if err := initializers.DB.Where("user_id = ?", input.UserID).Order("created_at desc").First(&deposit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
+		return
 	}
 
+	// Define withdrawal waiting period per package
+	var waitingPeriodDays int
+	var user models.User
+	if err := initializers.DB.First(&user, input.UserID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	switch strings.ToLower(user.Package) {
+	case "test":
+		waitingPeriodDays = 15
+	case "pro":
+		waitingPeriodDays = 30
+	case "premium":
+		waitingPeriodDays = 40
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown package type"})
+		return
+	}
+
+	// Calculate the earliest withdrawal date (deposit date + waiting period)
+	earliestWithdrawDate := deposit.CreatedAt.Add(time.Duration(waitingPeriodDays) * 24 * time.Hour)
+
+	// Check if the current date is before the earliest withdrawal date
+	if time.Now().Before(earliestWithdrawDate) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":       "Withdrawals are not allowed yet",
+			"unlock_date": earliestWithdrawDate.Format("2006-01-02"),
+		})
+		return
+	}
+
+	// Proceed to log withdrawal
 	tx := models.Withdraw{
-		UserID:        userID,
+		UserID:        input.UserID,
 		SenderName:    input.SenderName,
 		SenderAddress: input.SenderAddress,
 		WalletType:    input.WalletType,
 		Status:        input.Status,
 		Amount:        input.Amount,
 		Description:   input.Description,
-		CreatedAt:     input.CreatedAt,
+		CreatedAt:     time.Now(),
 	}
 
 	if err := initializers.DB.Create(&tx).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log transaction"})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
+}
+
+func rewardReferrer(referrerID uint, referredID uint, depositAmount float64) {
+	bonusAmount := depositAmount * 0.05 // For example, 10% of the deposit amount as a bonus
+
+	// Update referrer's balance
+	err := initializers.DB.Model(&models.User{}).
+		Where("id = ?", referrerID).
+		UpdateColumn("balance", gorm.Expr("balance + ?", bonusAmount)).Error
+	if err != nil {
+		log.Println("Failed to reward referrer:", err)
+		return
+	}
+
+	// Log the referral bonus
+	newBonus := models.ReferralBonus{
+		ReferrerID: referrerID,
+		ReferredID: referredID, // The user who made the deposit
+		Amount:     bonusAmount,
+		RewardedAt: time.Now(),
+	}
+
+	// Save the bonus in the ReferralBonus table
+	if err := initializers.DB.Create(&newBonus).Error; err != nil {
+		log.Println("Failed to log referral bonus:", err)
+	}
 }
 
 //func refererInterest(user models.User, amount float64, c *gin.Context) {
@@ -168,31 +245,66 @@ func Withdraw(c *gin.Context) {
 //	}
 //}
 
-func GetBalance(c *gin.Context) {
-
-	user, exists := c.Get("user")
-
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized) // User not found in context
-		return
-	}
-
-	userID := user.(models.User).ID
-
-	if userID == 0 {
-		c.AbortWithStatus(http.StatusUnauthorized)
-	}
-
-	var dbUser models.Client
-	if err := initializers.DB.First(&dbUser, userID).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
-		return
-	}
-
-	// Send back the balance and last updated time
-	c.JSON(http.StatusOK, gin.H{
-		"balance":   dbUser.Balance,
-		"updatedAt": dbUser.UpdatedAt,
-	})
-
+var profitRates = map[string]float64{
+	"test":    0.008,
+	"pro":     0.01,
+	"premium": 0.02,
 }
+
+func GenerateDailyProfits() {
+	var deposits []models.Deposit
+
+	// You could filter by active users or deposits
+	initializers.DB.Find(&deposits)
+
+	for _, d := range deposits {
+		rate, ok := profitRates[strings.ToLower(d.PackageType)]
+		if !ok {
+			continue
+		}
+
+		profit := d.Amount * rate
+
+		// Credit the user
+		initializers.DB.Model(&models.User{}).
+			Where("id = ?", d.UserID).
+			UpdateColumn("balance", gorm.Expr("balance + ?", profit))
+
+		// (Optional) Log profit entry
+		initializers.DB.Create(&models.Profit{
+			UserID:    d.UserID,
+			Amount:    profit,
+			Source:    "daily profit",
+			CreatedAt: time.Now(),
+		})
+	}
+}
+
+//func GetBalance(c *gin.Context) {
+//
+//	user, exists := c.Get("user")
+//
+//	if !exists {
+//		c.AbortWithStatus(http.StatusUnauthorized) // User not found in context
+//		return
+//	}
+//
+//	userID := user.(models.User).ID
+//
+//	if userID == 0 {
+//		c.AbortWithStatus(http.StatusUnauthorized)
+//	}
+//
+//	var dbUser models.Client
+//	if err := initializers.DB.First(&dbUser, userID).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+//		return
+//	}
+//
+//	// Send back the balance and last updated time
+//	c.JSON(http.StatusOK, gin.H{
+//		"balance":   dbUser.Balance,
+//		"updatedAt": dbUser.UpdatedAt,
+//	})
+//
+//}

@@ -3,7 +3,6 @@ package controllers
 import (
 	"JWTProject/initializers"
 	"JWTProject/models"
-	"JWTProject/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"log"
@@ -35,18 +34,18 @@ func RegisterAdmin(c *gin.Context) {
 		return
 	}
 
-	address, err := utils.GenerateAddress(10)
+	//address, err := utils.GenerateAddress(10)
 	if err != nil {
 		log.Fatal("Error generating address:", err)
 	}
 
 	// Create the User
-	user := models.User{
-		Username: req.Username,
+	user := models.Admin{
+		//Username: req.Username,
 		Email:    req.Email,
 		Password: string(hashedPassword),
-		Address:  address,
-		Role:     "admin", // 👈 Important
+		//Address:  address,
+		//Role:     "admin", // 👈 Important
 	}
 
 	if err := initializers.DB.Create(&user).Error; err != nil {
@@ -55,7 +54,7 @@ func RegisterAdmin(c *gin.Context) {
 	}
 
 	admin := models.Admin{
-		UserID: user.ID,
+		AdminID: user.ID,
 	}
 
 	if err := initializers.DB.Create(&admin).Error; err != nil {
@@ -90,25 +89,63 @@ func RegisterAdmin(c *gin.Context) {
 //
 //}
 
-func GetUsers(c *gin.Context) {
-	var users []models.User
+//func GetUsers(c *gin.Context) {
+//	var users []models.User
+//
+//	user, exists := c.Get("user")
+//
+//	if !exists {
+//		c.AbortWithStatus(http.StatusUnauthorized) // User not found in context
+//		return
+//	}
+//
+//	userID := user.(models.User).ID
+//
+//	if userID == 0 {
+//		c.AbortWithStatus(http.StatusUnauthorized)
+//	}
+//
+//	if err := initializers.DB.Find(&users).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+//		return
+//	}
+//	c.JSON(http.StatusOK, users)
+//}
 
-	user, exists := c.Get("user")
+type UpdateBalanceInput struct {
+	UserID      uint    `json:"user_id" binding:"required"`
+	Balance     float64 `json:"balance" binding:"required"`
+	PackageName string  `json:"package_name"` // Optional
 
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized) // User not found in context
+}
+
+func UpdateUserBalance(c *gin.Context) {
+	var input UpdateBalanceInput
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	userID := user.(models.User).ID
-
-	if userID == 0 {
-		c.AbortWithStatus(http.StatusUnauthorized)
-	}
-
-	if err := initializers.DB.Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+	var user models.User
+	if err := initializers.DB.First(&user, input.UserID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-	c.JSON(http.StatusOK, users)
+
+	// Update balance and optionally package name
+	user.Balance = input.Balance
+	if input.PackageName != "" {
+		user.Package = input.PackageName
+	}
+
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User updated successfully",
+		"user":    user,
+	})
 }

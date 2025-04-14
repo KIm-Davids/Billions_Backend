@@ -4,6 +4,7 @@ import "gorm.io/gorm"
 
 type Admin struct {
 	gorm.Model
-	UserID uint
-	User   User `gorm:"foreignKey:UserID"`
+	AdminID  uint
+	Email    string `json:"email" gorm:"unique"`
+	Password string `json:"password"`
 }

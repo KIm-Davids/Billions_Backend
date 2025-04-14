@@ -3,11 +3,11 @@ package main
 import (
 	"JWTProject/controllers"
 	"JWTProject/initializers"
-	"JWTProject/middleware"
 	"database/sql"
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron/v3"
 	"log"
 	"time"
 )
@@ -83,20 +83,30 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	adminRoutes := router.Group("/admin")
-	adminRoutes.Use(middleware.RequireAuth, middleware.IsAdminMiddleware())
+	//adminRoutes := router.Group("/admin")
+	//adminRoutes.Use(middleware.RequireAuth, middleware.IsAdminMiddleware())
 
 	router.POST("/register/admin", controllers.RegisterAdmin)
 	router.POST("/register/client", controllers.CreateClient)
 	router.POST("/login", controllers.Login)
-	router.POST("/deposit", middleware.RequireAuth, controllers.Deposit)
-	router.POST("/withdraw", middleware.RequireAuth, controllers.Withdraw)
-	router.POST("/balance", middleware.RequireAuth, controllers.GetBalance)
-	router.GET("/validate", middleware.RequireAuth, controllers.Validate)
+	router.POST("/deposit", controllers.Deposit)
+	router.POST("/withdraw", controllers.Withdraw)
+	//router.POST("/balance", controllers.GetBalance)
+	router.GET("/validate", controllers.Validate)
 	//router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
-	router.GET("/get/users", middleware.RequireAuth, controllers.GetUsers)
+	//router.GET("/get/users", controllers.GetUsers)
+	router.PATCH("/update/usersBalance", controllers.UpdateUserBalance)
 
 	router.Run(":8080")
+
+	c := cron.New()
+
+	// Run daily at 7 AM
+	c.AddFunc("0 7 * * *", controllers.GenerateDailyProfits)
+
+	c.Start()
+	select {} // keep the program running
+
 }
 
 //func main() {
