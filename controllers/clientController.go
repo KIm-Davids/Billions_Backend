@@ -269,7 +269,7 @@ func Withdraw(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
 
-func rewardReferrer(referrerID string, referredID uint, depositAmount float64) {
+func rewardReferrer(referrerID string, referredID string, depositAmount float64) {
 	bonusAmount := depositAmount * 0.05 // For example, 10% of the deposit amount as a bonus
 
 	// Update referrer's balance
