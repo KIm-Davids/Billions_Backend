@@ -3,8 +3,8 @@ package models
 import "time"
 
 type Profit struct {
-	ID        uint    `gorm:"primaryKey"`
-	UserID    string  `gorm:"not null"`
+	//ID        uint    `gorm:"primaryKey"`
+	Email     string  `gorm:"not null"`
 	Amount    float64 `gorm:"not null"`
 	Source    string  `gorm:"not null"` // e.g., "daily profit"
 	CreatedAt time.Time

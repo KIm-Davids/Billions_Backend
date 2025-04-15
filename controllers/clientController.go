@@ -155,15 +155,15 @@ func Deposit(c *gin.Context) {
 	}
 
 	// Check if it's the user's first deposit
-	initializers.DB.Model(&models.Deposit{}).Where("user_id = ?", input.UserID).Count(&depositCount)
+	initializers.DB.Model(&models.Deposit{}).Where("email = ?", input.Email).Count(&depositCount)
 
 	// If it's the user's first deposit
 	if depositCount == 0 {
 		var user models.User
 		// Get the user by input.UserID (this is the referred user)
-		if err := initializers.DB.First(&user, input.UserID).Error; err == nil && user.ReferID != "" {
+		if err := initializers.DB.First(&user, input.Email).Error; err == nil && user.ReferID != "" {
 			// Reward the referrer (e.g., credit a bonus)
-			rewardReferrer(user.ReferID, input.UserID, input.Amount)
+			rewardReferrer(user.ReferID, input.Email, input.Amount)
 		}
 	}
 
@@ -175,7 +175,7 @@ func Deposit(c *gin.Context) {
 
 	// Log the deposit transaction
 	tx := models.Deposit{
-		UserID:      input.UserID,
+		//UserID:      input.UserID,
 		Email:       input.Email,
 		Hash:        input.Hash,
 		Status:      input.Status,
@@ -344,12 +344,13 @@ func GenerateDailyProfits() {
 
 		// Credit the user
 		initializers.DB.Model(&models.User{}).
-			Where("id = ?", d.UserID).
+			Where("email = ?", d.Email).
 			UpdateColumn("balance", gorm.Expr("balance + ?", profit))
 
 		// (Optional) Log profit entry
 		initializers.DB.Create(&models.Profit{
-			UserID:    d.UserID,
+			//UserID:    d.UserID,
+			Email:     d.Email,
 			Amount:    profit,
 			Source:    "daily profit",
 			CreatedAt: time.Now(),
