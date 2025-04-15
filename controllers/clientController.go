@@ -460,10 +460,11 @@ func GetWithdrawDate(c *gin.Context) {
 
 	// Calculate withdraw date
 	withdrawDate := deposit.CreatedAt.Add(time.Duration(waitingDays) * 24 * time.Hour)
+	withdrawDateFormatted := withdrawDate.Format("January 02, 2006") // e.g. April 30, 2025
 
 	// Return the withdraw date
 	c.JSON(http.StatusOK, gin.H{
-		"withdraw_date": withdrawDate.Format("2006-01-02"),
+		"withdraw_date": withdrawDateFormatted,
 		"package":       user.Package,
 		"days_waiting":  waitingDays,
 	})
