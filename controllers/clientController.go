@@ -409,7 +409,19 @@ func GenerateDailyProfits() {
 
 func GetWithdrawDate(c *gin.Context) {
 	// You can receive email or user ID from query params
-	email := c.Query("email")
+	// Define a struct for the expected JSON body
+	var request struct {
+		Email string `json:"email" binding:"required"`
+	}
+
+	// Parse JSON body
+	if err := c.ShouldBindJSON(&request); err != nil || request.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	email := request.Email
+
 	if email == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
 		return
@@ -422,10 +434,10 @@ func GetWithdrawDate(c *gin.Context) {
 		return
 	}
 
-	// Fetch the user's latest deposit
+	// Get the most recent confirmed deposit
 	var deposit models.Deposit
 	if err := initializers.DB.
-		Where("email = ?", user.ID).
+		Where("email = ? AND status = ?", email, "confirmed").
 		Order("created_at desc").
 		First(&deposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
