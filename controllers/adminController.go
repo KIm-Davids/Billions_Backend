@@ -223,8 +223,8 @@ func GetAllUsers(c *gin.Context) {
 }
 func ConfirmDeposit(c *gin.Context) {
 	type ConfirmRequest struct {
-		Email     string `json:"email"`
-		DepositID uint   `json:"deposit_id"`
+		Email string `json:"email"`
+		hash  string `json:"hash"`
 	}
 
 	var req ConfirmRequest
@@ -244,7 +244,7 @@ func ConfirmDeposit(c *gin.Context) {
 	var deposit models.Deposit
 
 	// Fetch the deposit with a specific DepositID, email, and status as "pending"
-	if err := initializers.DB.Where("email = ? AND status = ? AND deposit_id = ?", req.Email, "pending", req.DepositID).
+	if err := initializers.DB.Where("email = ? AND status = ? AND hash = ?", req.Email, "pending", req.hash).
 		First(&deposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found or already confirmed"})
 		return
