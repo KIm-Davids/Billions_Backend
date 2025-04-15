@@ -499,7 +499,7 @@ func GetUserInfo(c *gin.Context) {
 		return
 	}
 
-	if latestDeposit.Status == "confirm" {
+	if latestDeposit.Status == "confirmed" {
 		c.JSON(http.StatusOK, gin.H{
 			"balance":      user.Balance,
 			"packages":     latestDeposit.PackageType,
