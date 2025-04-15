@@ -244,7 +244,7 @@ func ConfirmDeposit(c *gin.Context) {
 	var deposit models.Deposit
 
 	// Fetch the deposit with a specific DepositID, email, and status as "pending"
-	if err := initializers.DB.Where("email = ? AND status = ? AND hash = ?", req.Email, "pending", req.hash).
+	if err := initializers.DB.Where("email = ? AND status = ? AND hash = ?", req.Email, "pending", req.Hash).
 		First(&deposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found or already confirmed"})
 		return
