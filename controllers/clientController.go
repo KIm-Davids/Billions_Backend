@@ -446,7 +446,7 @@ func GetWithdrawDate(c *gin.Context) {
 
 	// Determine the number of days based on the package
 	var waitingDays int
-	switch strings.ToLower(user.Package) {
+	switch strings.ToLower(deposit.PackageType) {
 	case "Test package":
 		waitingDays = 15
 	case "Pro package":
