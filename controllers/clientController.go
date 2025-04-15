@@ -499,10 +499,13 @@ func GetUserInfo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"balance":      user.Balance,
-		"packages":     latestDeposit.PackageType,
-		"referralCode": user.ReferID,
-		//"withdrawDate": user.
-	})
+	if latestDeposit.Status == "confirm" {
+		c.JSON(http.StatusOK, gin.H{
+			"balance":      user.Balance,
+			"packages":     latestDeposit.PackageType,
+			"referralCode": user.ReferID,
+			//"withdrawDate": user.
+		})
+	}
+
 }
