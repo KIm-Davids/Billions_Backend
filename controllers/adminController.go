@@ -258,7 +258,7 @@ func ConfirmDeposit(c *gin.Context) {
 
 	// Save both updates in a transaction
 	tx := initializers.DB.Begin()
-	if err := tx.Save(&deposit).Error; err != nil {
+	if err := tx.Model(&deposit).Update("status", "confirmed").Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update deposit status"})
 		return
