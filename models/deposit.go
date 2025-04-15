@@ -3,8 +3,8 @@ package models
 import "time"
 
 type Deposit struct {
-	DepositID   uint      `gorm:"primaryKey;autoIncrement"`
-	UserID      uint      `json:"user_id"`
+	DepositID uint `gorm:"primaryKey;autoIncrement"`
+	//UserID      uint      `json:"user_id"`
 	Email       string    `json:"email"`
 	Hash        string    `json:"hash" gorm:"unique"`
 	Status      string    `json:"status"`
