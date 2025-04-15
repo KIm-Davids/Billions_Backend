@@ -221,11 +221,10 @@ func GetAllUsers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, users)
 }
-
 func ConfirmDeposit(c *gin.Context) {
 	type ConfirmRequest struct {
 		Email     string `json:"email"`
-		DepositID uint   `json:"deposit_id"` // Or use other identifier
+		DepositID uint   `json:"deposit_id"`
 	}
 
 	var req ConfirmRequest
@@ -244,34 +243,36 @@ func ConfirmDeposit(c *gin.Context) {
 	// Find the deposit record that belongs to this user and is still pending
 	var deposit models.Deposit
 
-	if err := initializers.DB.
-		Where("email = ? AND status = ?", req.Email, "pending").
+	// Fetch the deposit with a specific DepositID, email, and status as "pending"
+	if err := initializers.DB.Where("email = ? AND status = ? AND deposit_id = ?", req.Email, "pending", req.DepositID).
 		First(&deposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found or already confirmed"})
 		return
 	}
-	// Update deposit status
-	deposit.Status = "confirmed"
 
-	// Update user balance
-	user.Balance += deposit.Amount
-
-	// Save both updates in a transaction
+	// Start a new transaction
 	tx := initializers.DB.Begin()
-	if err := tx.Model(&deposit).Update("status", "confirmed").Error; err != nil {
+
+	// Update the deposit status
+	deposit.Status = "confirmed"
+	if err := tx.Save(&deposit).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update deposit status"})
 		return
 	}
 
+	// Update user balance
+	user.Balance += deposit.Amount
 	if err := tx.Save(&user).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
 		return
 	}
 
+	// Commit the transaction
 	tx.Commit()
 
+	// Return a success response
 	c.JSON(http.StatusOK, gin.H{"message": "Deposit confirmed and balance updated"})
 }
 
