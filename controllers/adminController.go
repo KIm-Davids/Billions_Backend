@@ -277,13 +277,14 @@ func ConfirmDeposit(c *gin.Context) {
 func GetAllDeposits(c *gin.Context) {
 	// Get admin email from query or token (here we're using query for simplicity)
 	adminEmail := c.Query("email")
+
 	if adminEmail == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
 		return
 	}
 
 	// Check if email is admin
-	if adminEmail != "admin@example.com" {
+	if adminEmail != "admin10k4u1234@gmail.com" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: admin access only"})
 		return
 	}
