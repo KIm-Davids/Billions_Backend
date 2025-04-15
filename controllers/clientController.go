@@ -462,6 +462,7 @@ func GetUserInfo(c *gin.Context) {
 	// Define a struct to hold the incoming data (email)
 	var requestData struct {
 		Email string `json:"email" binding:"required"`
+		Hash  string `json:"hash" binding:"required"`
 	}
 
 	// Parse the request body into the struct
@@ -473,6 +474,7 @@ func GetUserInfo(c *gin.Context) {
 
 	// Now use the email from the requestData struct
 	email := requestData.Email
+	hash := requestData.Hash
 
 	if email == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
@@ -486,26 +488,25 @@ func GetUserInfo(c *gin.Context) {
 	}
 	fmt.Println("Returning package:", user.Package)
 
-	var latestDeposit models.Deposit
+	// Fetch deposit using email and hash
+	var deposit models.Deposit
 	if err := initializers.DB.
-		Where("email = ? AND status = ?", email, "confirmed").
-		Order("created_at desc").
-		First(&latestDeposit).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"balance":      user.Balance,
-			"packages":     nil, // or "No Package"
-			"referralCode": user.ReferID,
-		})
+		Where("email = ? AND hash = ?", email, hash).
+		First(&deposit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
 		return
 	}
 
-	if latestDeposit.Status == "confirmed" {
-		c.JSON(http.StatusOK, gin.H{
-			"balance":      user.Balance,
-			"packages":     latestDeposit.PackageType,
-			"referralCode": user.ReferID,
-			//"withdrawDate": user.
-		})
+	// Only return package if the deposit is confirmed
+	if deposit.Status != "confirmed" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Deposit not confirmed yet"})
+		return
 	}
 
+	c.JSON(http.StatusOK, gin.H{
+		"balance":      user.Balance,
+		"packages":     deposit.PackageType,
+		"referralCode": user.ReferID,
+		//"withdrawDate": user.
+	})
 }
