@@ -212,6 +212,10 @@ func Deposit(c *gin.Context) {
 		}
 
 		user.Balance += input.Amount
+
+		// Update the user's package field based on the deposit package type
+		user.Package = input.PackageType // Set the user's package to the package type of this deposit
+
 		if err := initializers.DB.Save(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
 			return
