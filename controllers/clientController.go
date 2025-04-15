@@ -4,6 +4,7 @@ import (
 	"JWTProject/initializers"
 	"JWTProject/models"
 	"JWTProject/utils"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -483,10 +484,24 @@ func GetUserInfo(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "server side error User not found"})
 		return
 	}
+	fmt.Println("Returning package:", user.Package)
+
+	var latestDeposit models.Deposit
+	if err := initializers.DB.
+		Where("email = ? AND status = ?", email, "confirmed").
+		Order("created_at desc").
+		First(&latestDeposit).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"balance":      user.Balance,
+			"packages":     nil, // or "No Package"
+			"referralCode": user.ReferID,
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"balance":      user.Balance,
-		"packages":     user.Package,
+		"packages":     latestDeposit.PackageType,
 		"referralCode": user.ReferID,
 		//"withdrawDate": user.
 	})
