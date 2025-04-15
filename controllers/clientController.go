@@ -507,6 +507,7 @@ func GetUserInfo(c *gin.Context) {
 		"balance":      user.Balance,
 		"packages":     deposit.PackageType,
 		"referralCode": user.ReferID,
+		"status":       deposit.Status,
 		//"withdrawDate": user.
 	})
 }
