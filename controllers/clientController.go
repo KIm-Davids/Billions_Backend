@@ -447,11 +447,11 @@ func GetWithdrawDate(c *gin.Context) {
 	// Determine the number of days based on the package
 	var waitingDays int
 	switch strings.ToLower(user.Package) {
-	case "test":
+	case "Test package":
 		waitingDays = 15
-	case "pro":
+	case "Pro package":
 		waitingDays = 30
-	case "premium":
+	case "Premium package":
 		waitingDays = 40
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
