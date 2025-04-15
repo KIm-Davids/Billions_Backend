@@ -154,6 +154,20 @@ func Deposit(c *gin.Context) {
 		return
 	}
 
+	// Step 1: Ensure user exists and get their ID
+	var user models.User
+	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		// If not found, create user
+		user = models.User{
+			Email: input.Email,
+			// add other fields as needed (e.g., name, referID, etc.)
+		}
+		if err := initializers.DB.Create(&user).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+			return
+		}
+	}
+
 	// Check if it's the user's first deposit
 	initializers.DB.Model(&models.Deposit{}).Where("email = ?", input.Email).Count(&depositCount)
 
