@@ -200,22 +200,32 @@ func Deposit(c *gin.Context) {
 		return
 	}
 
-	// Update the user's balance
-	var user models.User
-	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-	// Add the deposit amount to the user's balance
-	user.Balance += input.Amount
-	if err := initializers.DB.Save(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
-		return
-	}
+	// Check if the deposit status is confirmed before updating the user's balance
+	if input.Status == "confirmed" {
+		// Update the user's balance
+		var user models.User
+		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
+		// Update the user's balance
+		//var user models.User
+		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		// Add the deposit amount to the user's balance
+		user.Balance += input.Amount
+
+		if err := initializers.DB.Save(&user).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
+	}
 }
-
 func Withdraw(c *gin.Context) {
 	var input models.Withdraw
 

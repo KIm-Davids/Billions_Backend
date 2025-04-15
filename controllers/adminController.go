@@ -243,6 +243,7 @@ func ConfirmDeposit(c *gin.Context) {
 
 	// Find the deposit record that belongs to this user and is still pending
 	var deposit models.Deposit
+
 	if err := initializers.DB.
 		Where("user_id = ? AND status = ?", user.ID, "pending").
 		First(&deposit).Error; err != nil {
@@ -272,6 +273,46 @@ func ConfirmDeposit(c *gin.Context) {
 	tx.Commit()
 
 	c.JSON(http.StatusOK, gin.H{"message": "Deposit confirmed and balance updated"})
+}
+
+func RejectDeposit(c *gin.Context) {
+	type RejectRequest struct {
+		Email     string `json:"email"`
+		DepositID uint   `json:"deposit_id"` // Or use another identifier
+	}
+
+	var req RejectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Find the user by email
+	var user models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Find the deposit record that belongs to this user and is still pending
+	var deposit models.Deposit
+	if err := initializers.DB.
+		Where("user_id = ? AND status = ?", user.ID, "pending").
+		First(&deposit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found or already processed"})
+		return
+	}
+
+	// Update deposit status to 'rejected'
+	deposit.Status = "rejected"
+
+	// Save the updated deposit record
+	if err := initializers.DB.Save(&deposit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update deposit status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Deposit rejected"})
 }
 
 func GetAllDeposits(c *gin.Context) {
