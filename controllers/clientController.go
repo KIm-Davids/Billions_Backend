@@ -497,7 +497,7 @@ func GetUserInfo(c *gin.Context) {
 		return
 	}
 
-	// Only return package if the deposit is confirmed
+	//// Only return package if the deposit is confirmed
 	//if deposit.Status != "confirmed" {
 	//	c.JSON(http.StatusForbidden, gin.H{"error": "Deposit not confirmed yet"})
 	//	return
@@ -507,7 +507,6 @@ func GetUserInfo(c *gin.Context) {
 		"balance":      user.Balance,
 		"packages":     deposit.PackageType,
 		"referralCode": user.ReferID,
-		"status":       deposit.Status,
 		//"withdrawDate": user.
 	})
 }
