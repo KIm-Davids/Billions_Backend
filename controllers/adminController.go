@@ -224,7 +224,7 @@ func GetAllUsers(c *gin.Context) {
 func ConfirmDeposit(c *gin.Context) {
 	type ConfirmRequest struct {
 		Email string `json:"email"`
-		hash  string `json:"hash"`
+		Hash  string `json:"hash"`
 	}
 
 	var req ConfirmRequest
