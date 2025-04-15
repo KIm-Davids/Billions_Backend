@@ -153,6 +153,7 @@ func Deposit(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
+
 	// Check if it's the user's first deposit
 	initializers.DB.Model(&models.Deposit{}).Where("user_id = ?", input.UserID).Count(&depositCount)
 
@@ -166,24 +167,13 @@ func Deposit(c *gin.Context) {
 		}
 	}
 
-	//userRaw, exists := c.Get("user")
-	//if !exists {
-	//	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-	//	return
-	//}
-	//
-	//user, ok := userRaw.(models.User) // or *models.User if you stored a pointer
-	//if !ok || user.ID == 0 {
-	//	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid user object"})
-	//	return
-	//}
-
 	// Check for duplicate transaction hash
 	if err := initializers.DB.Where("hash = ?", input.Hash).First(&existingTx).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Transaction hash already exists"})
 		return
 	}
 
+	// Log the deposit transaction
 	tx := models.Deposit{
 		UserID:      input.UserID,
 		Email:       input.Email,
@@ -194,38 +184,33 @@ func Deposit(c *gin.Context) {
 		PackageType: input.PackageType,
 	}
 
-	//refererInterest(, input.Amount, c)
 	if err := initializers.DB.Create(&tx).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log transaction"})
 		return
 	}
 
-	// Check if the deposit status is confirmed before updating the user's balance
+	// Update the user's balance if the deposit status is confirmed
 	if input.Status == "confirmed" {
-		// Update the user's balance
 		var user models.User
 		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}
 
-		// Update the user's balance
-		//var user models.User
-		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
-		}
-		// Add the deposit amount to the user's balance
 		user.Balance += input.Amount
-
 		if err := initializers.DB.Save(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
 			return
 		}
 
+		// Successfully logged the transaction and updated user balance
 		c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
+	} else {
+		// If status is not confirmed, return an appropriate response
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Deposit status not confirmed"})
 	}
 }
+
 func Withdraw(c *gin.Context) {
 	var input models.Withdraw
 
