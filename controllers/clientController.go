@@ -361,6 +361,15 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
+	// Check if profits have already been generated for today
+	// We are using the date part of the current date to check
+	var todayProfit models.Profit
+	if err := initializers.DB.Where("DATE(created_at) = ?", currentTime.Format("2006-01-02")).First(&todayProfit).Error; err == nil {
+		// If profits for today already exist, skip generation
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Profits for today have already been generated"})
+		return
+	}
+
 	// Fetch all deposits for users who are eligible for profit
 	initializers.DB.Find(&deposits)
 
@@ -388,6 +397,7 @@ func GenerateDailyProfits(c *gin.Context) {
 			Amount:    profit,
 			Source:    "daily profit",
 			CreatedAt: time.Now(),
+			Date:      currentTime, // Save the date when the profit was generated
 		}
 
 		// Save the individual profit entry in the Profit table for detailed tracking
