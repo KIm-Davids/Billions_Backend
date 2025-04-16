@@ -312,12 +312,13 @@ func WithdrawFromProfits(c *gin.Context) {
 
 		// Log the profit withdrawal transaction
 		tx := models.Withdraw{
-			Email:       input.Email,
-			WalletType:  input.WalletType,
-			Status:      input.Status,
-			Amount:      input.Amount,
-			Description: input.Description,
-			CreatedAt:   time.Now(),
+			WithdrawAddress: input.WithdrawAddress,
+			Email:           input.Email,
+			WalletType:      input.WalletType,
+			Status:          input.Status,
+			Amount:          input.Amount,
+			Description:     input.Description,
+			CreatedAt:       time.Now(),
 		}
 
 		// Save the withdrawal record
@@ -327,10 +328,9 @@ func WithdrawFromProfits(c *gin.Context) {
 		}
 
 		// Return success response
-		c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal logged", "withdrawal": tx})
-	} else {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Withdrawal must be confirmed before processing"})
 	}
+	c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal logged"})
+
 }
 
 func WithdrawFromBalance(c *gin.Context) {
