@@ -226,6 +226,7 @@ func Deposit(c *gin.Context) {
 	// Successfully logged the transaction and updated user balance
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
+
 func WithdrawFromProfits(c *gin.Context) {
 	var input models.Withdraw
 
@@ -306,8 +307,10 @@ func WithdrawFromProfits(c *gin.Context) {
 			return
 		}
 
-		user.Profit -= input.Amount
-		user.Package = deposit.PackageType
+		if input.Status == "confirmed" {
+			user.Profit -= input.Amount
+			user.Package = deposit.PackageType
+		}
 
 		if err := initializers.DB.Save(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
