@@ -291,21 +291,22 @@ func WithdrawFromProfits(c *gin.Context) {
 			return
 		}
 
-		// Update the user's balance if the status is confirmed
+		// Update the user's balance and total profit if the status is confirmed
 		var user models.User
 		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}
 
-		// Deduct the withdrawal amount from user's balance
-		user.Balance -= input.Amount
+		// Deduct the withdrawal amount from user's profit field
+		user.Profit -= input.Amount
+		//user.Balance -= input.Amount // Update balance too
 
 		// Update the user's package field based on the deposit package type
 		user.Package = deposit.PackageType // Set the user's package to the package type of this deposit
 
 		if err := initializers.DB.Save(&user).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance and profit"})
 			return
 		}
 

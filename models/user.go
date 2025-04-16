@@ -12,4 +12,5 @@ type User struct {
 	ReferredBy string  `json:"referrer" gorm:"unique"`
 	Balance    float64 `json:"balance"`
 	Package    string  `json:"package,omitempty"`
+	Profit     float64 `gorm:"default:0"`
 }
