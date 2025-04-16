@@ -236,16 +236,16 @@ func WithdrawFromProfits(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	//
-	//// Ensure that email and amount are provided
-	//if input.Email == "" || input.Amount <= 0 {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Email and valid amount are required"})
-	//	return
-	//}
+
+	// Ensure that email and amount are provided
+	if input.Email == "" || input.Amount <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email and valid amount are required"})
+		return
+	}
 
 	// Find the user by email
-	var user models.User
-	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+	var deposit models.Deposit
+	if err := initializers.DB.Where("email = ?", input.Email).First(&deposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -258,7 +258,7 @@ func WithdrawFromProfits(c *gin.Context) {
 	}
 
 	// Fetch the minimum withdrawal amount for the user's package
-	packageKey := strings.ToLower(user.Package)
+	packageKey := strings.ToLower(deposit.PackageType)
 	minAmount, exists := minProfitWithdrawal[packageKey]
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
