@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/robfig/cron/v3"
 	"log"
 	"time"
 )
@@ -90,7 +89,7 @@ func main() {
 	router.POST("/register/client", controllers.CreateClient)
 	router.POST("/login", controllers.Login)
 	router.POST("/deposit", controllers.Deposit)
-	router.POST("/withdraw", controllers.Withdraw)
+	//router.POST("/withdraw", controllers.Withdraw)
 	//router.POST("/balance", controllers.GetBalance)
 	router.GET("/validate", controllers.Validate)
 	//router.GET("/get/transaction", middleware.RequireAuth, controllers.GetTransactions)
@@ -104,30 +103,31 @@ func main() {
 	router.POST("/rejectDeposits", controllers.RejectDeposit)
 	router.GET("/fetchDeposits", controllers.GetAllDeposits)
 	router.GET("/fetchWithdrawals", controllers.GetAllWithdrawals)
+	router.GET("/getDailyProfit", controllers.GenerateDailyProfits)
 
 	router.Run(":8080")
 
-	c := cron.New()
+	//c := cron.New()
 
 	// Run daily at 7 AM
-	location, _ := time.LoadLocation("Africa/Lagos") // Or your preferred zone
-	c = cron.New(cron.WithLocation(location))
-	c.AddFunc("0 7 * * *", controllers.GenerateDailyProfits)
-
-	currentTime := time.Now().In(location)
-
-	// Add 1 minute to the current time to run the job 1 minute ahead
-	nextRunTime := currentTime.Add(1 * time.Minute)
-
-	// Calculate the cron expression based on nextRunTime
-	// The cron format is: minute hour day month weekday
-	cronExpression := fmt.Sprintf("%d %d * * *", nextRunTime.Minute(), nextRunTime.Hour())
-
-	// Add the cron job with the dynamic cron expression
-	c.AddFunc(cronExpression, controllers.GenerateDailyProfits)
-
-	c.Start()
-	select {} // keep the program running
+	//location, _ := time.LoadLocation("Africa/Lagos") // Or your preferred zone
+	//c = cron.New(cron.WithLocation(location))
+	//c.AddFunc("0 7 * * *", controllers.GenerateDailyProfits)
+	//
+	//currentTime := time.Now().In(location)
+	//
+	//// Add 1 minute to the current time to run the job 1 minute ahead
+	//nextRunTime := currentTime.Add(1 * time.Minute)
+	//
+	//// Calculate the cron expression based on nextRunTime
+	//// The cron format is: minute hour day month weekday
+	//cronExpression := fmt.Sprintf("%d %d * * *", nextRunTime.Minute(), nextRunTime.Hour())
+	//
+	//// Add the cron job with the dynamic cron expression
+	//c.AddFunc(cronExpression, controllers.GenerateDailyProfits)
+	//
+	//c.Start()
+	//select {} // keep the program running
 
 }
 

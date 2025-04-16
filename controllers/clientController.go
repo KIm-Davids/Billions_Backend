@@ -347,35 +347,85 @@ var profitRates = map[string]float64{
 	"premium": 0.02,
 }
 
-func GenerateDailyProfits() {
+func GenerateDailyProfits(c *gin.Context) {
 	var deposits []models.Deposit
+	var userProfits map[string]float64 = make(map[string]float64)
 
-	// You could filter by active users or deposits
+	// Get the current time in the Africa/Lagos timezone
+	location, _ := time.LoadLocation("Africa/Lagos")
+	currentTime := time.Now().In(location)
+
+	// Check if the current time is before 7 AM
+	if currentTime.Hour() < 7 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Profits can only be generated after 7 AM"})
+		return
+	}
+
+	// Fetch all deposits for users who are eligible for profit
 	initializers.DB.Find(&deposits)
 
+	// Loop through each deposit and calculate daily profit
 	for _, d := range deposits {
-		rate, ok := profitRates[strings.ToLower(d.PackageType)]
-		if !ok {
-			continue
+		// Determine the profit rate based on the package type
+		var profitRate float64
+		switch strings.ToLower(d.PackageType) {
+		case "test":
+			profitRate = 0.008 // 0.8%
+		case "pro":
+			profitRate = 0.01 // 1%
+		case "premium":
+			profitRate = 0.012 // 1.2%
+		default:
+			continue // Skip unknown packages
 		}
 
-		profit := d.Amount * rate
+		// Calculate the profit for this deposit
+		profit := d.Amount * profitRate
 
-		// Credit the user
-		initializers.DB.Model(&models.User{}).
-			Where("email = ?", d.Email).
-			UpdateColumn("balance", gorm.Expr("balance + ?", profit))
-
-		// (Optional) Log profit entry
-		initializers.DB.Create(&models.Profit{
-			//UserID:    d.UserID,
+		// Log the individual profit entry for detailed records in the database
+		profitEntry := models.Profit{
 			Email:     d.Email,
 			Amount:    profit,
 			Source:    "daily profit",
 			CreatedAt: time.Now(),
+		}
+
+		// Save the individual profit entry in the Profit table for detailed tracking
+		if err := initializers.DB.Create(&profitEntry).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log profit"})
+			return
+		}
+
+		// Accumulate the profit for the user using email as the key
+		userProfits[d.Email] += profit
+	}
+
+	// Prepare the profit data to send to the frontend
+	var totalProfits []map[string]interface{}
+	for email, totalProfit := range userProfits {
+		totalProfits = append(totalProfits, map[string]interface{}{
+			"email":  email,
+			"profit": totalProfit,
 		})
 	}
+
+	// Return the accumulated profits (only the total) to the frontend
+	c.JSON(http.StatusOK, gin.H{"profits": totalProfits})
 }
+
+//
+//func GetUserProfits(c *gin.Context) {
+//	email := c.Query("email")
+//
+//	// Fetch profits for a particular user based on their email
+//	var profits []models.Profit
+//	if err := initializers.DB.Where("email = ?", email).Find(&profits).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch profits"})
+//		return
+//	}
+//
+//	c.JSON(http.StatusOK, gin.H{"profits": profits})
+//}
 
 //func GetBalance(c *gin.Context) {
 //
