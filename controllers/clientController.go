@@ -226,7 +226,6 @@ func Deposit(c *gin.Context) {
 	// Successfully logged the transaction and updated user balance
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
-
 func WithdrawFromProfits(c *gin.Context) {
 	var input models.Withdraw
 
@@ -273,23 +272,19 @@ func WithdrawFromProfits(c *gin.Context) {
 		return
 	}
 
-	// Fetch the user's profit record from the Profit table
-	var profit models.Profit
-	if err := initializers.DB.Where("email = ? AND source = ?", input.Email, "daily profit").First(&profit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Profit record not found"})
+	// Calculate the total profits for the user
+	var totalProfit float64
+	if err := initializers.DB.Model(&models.Profit{}).
+		Where("email = ? AND source = ?", input.Email, "daily profit").
+		Select("SUM(amount)").
+		Scan(&totalProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate profit balance"})
 		return
 	}
 
 	// Check if the user has enough profits in the Profit table
-	if profit.Amount < input.Amount {
+	if totalProfit < input.Amount {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient profit balance"})
-		return
-	}
-
-	// Deduct the amount from the user's profit in the Profit table
-	profit.Amount -= input.Amount
-	if err := initializers.DB.Save(&profit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profit balance"})
 		return
 	}
 
@@ -300,8 +295,7 @@ func WithdrawFromProfits(c *gin.Context) {
 		Status:      input.Status,
 		Amount:      input.Amount,
 		Description: input.Description,
-		//Source:      "profit", // Indicate it's from profits
-		CreatedAt: time.Now(),
+		CreatedAt:   time.Now(),
 	}
 
 	// Save the withdrawal record
@@ -484,18 +478,32 @@ func GenerateDailyProfits(c *gin.Context) {
 			continue
 		}
 
-		profit := d.Amount * rate
-		userProfits[d.Email] += profit
+		profitAmount := d.Amount * rate
+		userProfits[d.Email] += profitAmount
 
-		entry := models.Profit{
+		// Add a profit record
+		newProfit := models.Profit{
 			Email:     d.Email,
-			Amount:    profit,
+			Amount:    profitAmount,
 			Source:    "daily profit",
 			CreatedAt: currentTime,
 			Date:      currentTime,
 		}
-		if err := initializers.DB.Create(&entry).Error; err != nil {
+		if err := initializers.DB.Create(&newProfit).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
+			return
+		}
+
+		// Increment user's total profit
+		var user models.User
+		if err := initializers.DB.Where("email = ?", d.Email).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+
+		if err := initializers.DB.Model(&user).
+			Update("profit", gorm.Expr("profit + ?", profitAmount)).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
 			return
 		}
 	}
