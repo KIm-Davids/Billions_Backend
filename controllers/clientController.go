@@ -226,40 +226,50 @@ func Deposit(c *gin.Context) {
 	// Successfully logged the transaction and updated user balance
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
-
 func WithdrawFromProfits(c *gin.Context) {
 	var input models.Withdraw
 
-	// Bind incoming JSON request to the Withdraw model
 	if err := c.ShouldBindJSON(&input); err != nil {
 		fmt.Println("Bind error:", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	// Ensure that email and amount are provided
 	if input.Email == "" || input.Amount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email and valid amount are required"})
 		return
 	}
 
-	// Only process the withdrawal if the status is confirmed
+	// Log the withdrawal regardless of confirmation status
+	tx := models.Withdraw{
+		WithdrawAddress: input.WithdrawAddress,
+		Email:           input.Email,
+		WalletType:      input.WalletType,
+		Status:          input.Status,
+		Amount:          input.Amount,
+		Description:     input.Description,
+		CreatedAt:       time.Now(),
+	}
+
+	if err := initializers.DB.Create(&tx).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal"})
+		return
+	}
+
+	// Only process balance deduction if status is confirmed
 	if input.Status == "confirmed" {
-		// Find the user by email
 		var deposit models.Deposit
 		if err := initializers.DB.Where("email = ?", input.Email).First(&deposit).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "User deposit not found"})
 			return
 		}
 
-		// Set minimum withdrawal amounts for profit withdrawals based on the user's package
 		minProfitWithdrawal := map[string]float64{
 			"test package":    10.0,
 			"pro package":     50.0,
 			"premium package": 100.0,
 		}
 
-		// Fetch the minimum withdrawal amount for the user's package
 		packageKey := strings.ToLower(deposit.PackageType)
 		minAmount, exists := minProfitWithdrawal[packageKey]
 		if !exists {
@@ -267,7 +277,6 @@ func WithdrawFromProfits(c *gin.Context) {
 			return
 		}
 
-		// Check if the amount is below the required minimum
 		if input.Amount < minAmount {
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": fmt.Sprintf("Minimum profit withdrawal for %s package is $%.2f", packageKey, minAmount),
@@ -275,62 +284,39 @@ func WithdrawFromProfits(c *gin.Context) {
 			return
 		}
 
-		// Calculate the total profits for the user
 		var totalProfit float64
 		if err := initializers.DB.Model(&models.Profit{}).
 			Where("email = ? AND source = ?", input.Email, "daily profit").
-			Select("SUM(amount)").
-			Scan(&totalProfit).Error; err != nil {
+			Select("SUM(amount)").Scan(&totalProfit).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate profit balance"})
 			return
 		}
 
-		// Check if the user has enough profits in the Profit table
 		if totalProfit < input.Amount {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient profit balance"})
 			return
 		}
 
-		// Update the user's balance and total profit if the status is confirmed
 		var user models.User
 		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}
 
-		// Deduct the withdrawal amount from user's profit field
 		user.Profit -= input.Amount
-		//user.Balance -= input.Amount // Update balance too
-
-		// Update the user's package field based on the deposit package type
-		user.Package = deposit.PackageType // Set the user's package to the package type of this deposit
+		user.Package = deposit.PackageType
 
 		if err := initializers.DB.Save(&user).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance and profit"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
 			return
 		}
 
-		// Log the profit withdrawal transaction
-		tx := models.Withdraw{
-			WithdrawAddress: input.WithdrawAddress,
-			Email:           input.Email,
-			WalletType:      input.WalletType,
-			Status:          input.Status,
-			Amount:          input.Amount,
-			Description:     input.Description,
-			CreatedAt:       time.Now(),
-		}
-
-		// Save the withdrawal record
-		if err := initializers.DB.Create(&tx).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal"})
-			return
-		}
-
-		// Return success response
+		c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal confirmed and processed", "withdrawal": tx})
+		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal logged"})
 
+	// For non-confirmed withdrawals, just log it and return success
+	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal logged and pending admin confirmation", "withdrawal": tx})
 }
 
 func WithdrawFromBalance(c *gin.Context) {
