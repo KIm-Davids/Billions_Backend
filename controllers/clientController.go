@@ -256,6 +256,9 @@ func WithdrawFromProfits(c *gin.Context) {
 		return
 	}
 
+	// For non-confirmed withdrawals, just log it and return success
+	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal logged and pending admin confirmation", "withdrawal": tx})
+
 	// Only process balance deduction if status is confirmed
 	if input.Status == "confirmed" {
 		var deposit models.Deposit
@@ -315,8 +318,6 @@ func WithdrawFromProfits(c *gin.Context) {
 		return
 	}
 
-	// For non-confirmed withdrawals, just log it and return success
-	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal logged and pending admin confirmation", "withdrawal": tx})
 }
 
 func WithdrawFromBalance(c *gin.Context) {
