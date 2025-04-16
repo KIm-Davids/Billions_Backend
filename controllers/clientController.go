@@ -251,9 +251,9 @@ func WithdrawFromProfits(c *gin.Context) {
 
 	// Set minimum withdrawal amounts for profit withdrawals based on the user's package
 	minProfitWithdrawal := map[string]float64{
-		"test":    10.0,
-		"pro":     50.0,
-		"premium": 100.0,
+		"test package":    10.0,
+		"pro package":     50.0,
+		"premium package": 100.0,
 	}
 
 	// Fetch the minimum withdrawal amount for the user's package
