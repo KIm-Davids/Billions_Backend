@@ -279,7 +279,7 @@ func ConfirmDeposit(c *gin.Context) {
 func RejectDeposit(c *gin.Context) {
 	type RejectRequest struct {
 		Email string `json:"email"`
-		Hash  uint   `json:"hash"` // Or use another identifier
+		Hash  string `json:"hash"` // Or use another identifier
 	}
 
 	var req RejectRequest

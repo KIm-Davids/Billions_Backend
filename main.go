@@ -110,6 +110,8 @@ func main() {
 	c := cron.New()
 
 	// Run daily at 7 AM
+	location, _ := time.LoadLocation("Africa/Lagos") // Or your preferred zone
+	c = cron.New(cron.WithLocation(location))
 	c.AddFunc("0 7 * * *", controllers.GenerateDailyProfits)
 
 	c.Start()
