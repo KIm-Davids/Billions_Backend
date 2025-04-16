@@ -227,71 +227,180 @@ func Deposit(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
 
-//
-//func Withdraw(c *gin.Context) {
-//	var input models.Withdraw
-//
-//	if err := c.ShouldBindJSON(&input); err != nil {
-//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-//		return
-//	}
-//
-//	// Fetch the user's deposit info to get the deposit date using input.UserID
-//	var withdrawal models.Withdraw
-//	if err := initializers.DB.Where("email = ?", input.Email).Order("created_at desc").First(&withdrawal).Error; err != nil {
-//		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
-//		return
-//	}
-//
-//	// Define withdrawal waiting period per package
-//	var waitingPeriodDays int
-//	var user models.User
-//	if err := initializers.DB.First(&user, input.UserID).Error; err != nil {
-//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-//		return
-//	}
-//
-//	switch strings.ToLower(user.Package) {
-//	case "test":
-//		waitingPeriodDays = 15
-//	case "pro":
-//		waitingPeriodDays = 30
-//	case "premium":
-//		waitingPeriodDays = 40
-//	default:
-//		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown package type"})
-//		return
-//	}
-//
-//	// Calculate the earliest withdrawal date (deposit date + waiting period)
-//	earliestWithdrawDate := deposit.CreatedAt.Add(time.Duration(waitingPeriodDays) * 24 * time.Hour)
-//
-//	// Check if the current date is before the earliest withdrawal date
-//	if time.Now().Before(earliestWithdrawDate) {
-//		c.JSON(http.StatusForbidden, gin.H{
-//			"error":       "Withdrawals are not allowed yet",
-//			"unlock_date": earliestWithdrawDate.Format("2006-01-02"),
-//		})
-//		return
-//	}
-//
-//	// Proceed to log withdrawal
-//	tx := models.Withdraw{
-//		//UserID:      input.UserID,
-//		WalletType:  input.WalletType,
-//		Status:      input.Status,
-//		Amount:      input.Amount,
-//		Description: input.Description,
-//		CreatedAt:   time.Now(),
-//	}
-//
-//	if err := initializers.DB.Create(&tx).Error; err != nil {
-//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log transaction"})
-//		return
-//	}
-//
-//	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
-//}
+func WithdrawFromProfits(c *gin.Context) {
+	var input models.Withdraw
+
+	// Bind incoming JSON request to the Withdraw model
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Ensure that email and amount are provided
+	if input.Email == "" || input.Amount <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email and valid amount are required"})
+		return
+	}
+
+	// Find the user by email
+	var user models.User
+	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Set minimum withdrawal amounts for profit withdrawals based on the user's package
+	minProfitWithdrawal := map[string]float64{
+		"test":    10.0,
+		"pro":     50.0,
+		"premium": 100.0,
+	}
+
+	// Fetch the minimum withdrawal amount for the user's package
+	packageKey := strings.ToLower(user.Package)
+	minAmount, exists := minProfitWithdrawal[packageKey]
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
+		return
+	}
+
+	// Check if the amount is below the required minimum
+	if input.Amount < minAmount {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": fmt.Sprintf("Minimum profit withdrawal for %s package is $%.2f", packageKey, minAmount),
+		})
+		return
+	}
+
+	// Fetch the user's profit record from the Profit table
+	var profit models.Profit
+	if err := initializers.DB.Where("email = ? AND source = ?", input.Email, "daily profit").First(&profit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Profit record not found"})
+		return
+	}
+
+	// Check if the user has enough profits in the Profit table
+	if profit.Amount < input.Amount {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient profit balance"})
+		return
+	}
+
+	// Deduct the amount from the user's profit in the Profit table
+	profit.Amount -= input.Amount
+	if err := initializers.DB.Save(&profit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profit balance"})
+		return
+	}
+
+	// Log the profit withdrawal transaction
+	tx := models.Withdraw{
+		Email:       input.Email,
+		WalletType:  input.WalletType,
+		Status:      input.Status,
+		Amount:      input.Amount,
+		Description: input.Description,
+		//Source:      "profit", // Indicate it's from profits
+		CreatedAt: time.Now(),
+	}
+
+	// Save the withdrawal record
+	if err := initializers.DB.Create(&tx).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal"})
+		return
+	}
+
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal logged", "withdrawal": tx})
+}
+
+func WithdrawFromBalance(c *gin.Context) {
+	var input models.Withdraw
+
+	// Bind incoming JSON request to the Withdraw model
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Ensure that email and amount are provided
+	if input.Email == "" || input.Amount <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email and valid amount are required"})
+		return
+	}
+
+	// Find the user by email
+	var user models.User
+	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Get the latest deposit made by the user (used to calculate waiting period)
+	var latestDeposit models.Deposit
+	if err := initializers.DB.Where("email = ?", input.Email).Order("created_at desc").First(&latestDeposit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No deposit found for user"})
+		return
+	}
+
+	// Define waiting period for each package
+	var waitingDays int
+	switch strings.ToLower(user.Package) {
+	case "test":
+		waitingDays = 15
+	case "pro":
+		waitingDays = 30
+	case "premium":
+		waitingDays = 40
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown package type"})
+		return
+	}
+
+	// Calculate when the user is allowed to withdraw from their main balance
+	earliestWithdrawDate := latestDeposit.CreatedAt.Add(time.Hour * 24 * time.Duration(waitingDays))
+
+	// If the current date is before the allowed date, block the withdrawal
+	if time.Now().Before(earliestWithdrawDate) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":       "Main balance withdrawal is not allowed yet",
+			"unlock_date": earliestWithdrawDate.Format("2006-01-02"),
+		})
+		return
+	}
+
+	// Check if the user has enough balance
+	if user.Balance < input.Amount {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient main balance"})
+		return
+	}
+
+	// Deduct the amount from the user's main balance
+	user.Balance -= input.Amount
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+		return
+	}
+
+	// Log the withdrawal transaction in the database
+	tx := models.Withdraw{
+		Email:       input.Email,
+		WalletType:  input.WalletType,
+		Status:      input.Status,
+		Amount:      input.Amount,
+		Description: input.Description,
+		//Source:      "main", // Indicate it's from the main balance
+		CreatedAt: time.Now(),
+	}
+
+	// Save the withdrawal record
+	if err := initializers.DB.Create(&tx).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal"})
+		return
+	}
+
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{"message": "Main balance withdrawal logged", "withdrawal": tx})
+}
 
 func rewardReferrer(referrerID string, referredID string, depositAmount float64) {
 	bonusAmount := depositAmount * 0.05 // For example, 10% of the deposit amount as a bonus
@@ -318,24 +427,6 @@ func rewardReferrer(referrerID string, referredID string, depositAmount float64)
 		log.Println("Failed to log referral bonus:", err)
 	}
 }
-
-//func refererInterest(user models.User, amount float64, c *gin.Context) {
-//	var client models.Client
-//	if err := initializers.DB.Where("user_id = ?", user.ID).First(&client).Error; err != nil {
-//		c.JSON(http.StatusNotFound, gin.H{"error": "Client not found"})
-//		return
-//	}
-//
-//	//if client.Balance <= 0 && !client.RefererInterestApplied {
-//	//	interest := amount * 0.05
-//	//	client.Balance += interest
-//	//	client.RefererInterestApplied = true
-//
-//	if err := initializers.DB.Save(&client).Error; err != nil {
-//		c.JSON(http.StatusConflict, gin.H{"error": "Unable to update client balance"})
-//		return
-//	}
-//}
 
 var profitRates = map[string]float64{
 	"test":    0.008,

@@ -104,6 +104,8 @@ func main() {
 	router.GET("/fetchDeposits", controllers.GetAllDeposits)
 	router.GET("/fetchWithdrawals", controllers.GetAllWithdrawals)
 	router.GET("/getDailyProfit", controllers.GenerateDailyProfits)
+	router.GET("/withdrawBalance", controllers.WithdrawFromBalance)
+	router.GET("/withdrawProfit", controllers.WithdrawFromProfits)
 
 	router.Run(":8080")
 
