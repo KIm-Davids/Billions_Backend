@@ -386,11 +386,11 @@ func GenerateDailyProfits(c *gin.Context) {
 	for _, d := range deposits {
 		var rate float64
 		switch strings.ToLower(d.PackageType) {
-		case "test":
+		case "test package":
 			rate = 0.008
-		case "pro":
+		case "pro package":
 			rate = 0.01
-		case "premium":
+		case "premium package":
 			rate = 0.012
 		default:
 			continue
