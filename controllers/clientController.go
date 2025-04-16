@@ -349,78 +349,78 @@ var profitRates = map[string]float64{
 
 func GenerateDailyProfits(c *gin.Context) {
 	var deposits []models.Deposit
-	var userProfits map[string]float64 = make(map[string]float64)
+	userProfits := make(map[string]float64)
 
-	// Get the current time in the Africa/Lagos timezone
 	location, _ := time.LoadLocation("Africa/Lagos")
 	currentTime := time.Now().In(location)
+	todayDate := currentTime.Format("2006-01-02")
 
-	// Check if the current time is before 7 AM
-	if currentTime.Hour() < 7 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Profits can only be generated after 7 AM"})
-		return
-	}
-
-	// Check if profits have already been generated for today
-	// We are using the date part of the current date to check
-	var todayProfit models.Profit
-	if err := initializers.DB.Where("DATE(created_at) = ?", currentTime.Format("2006-01-02")).First(&todayProfit).Error; err == nil {
-		// If profits for today already exist, skip generation
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Profits for today have already been generated"})
-		return
-	}
-
-	// Fetch all deposits for users who are eligible for profit
-	initializers.DB.Find(&deposits)
-
-	// Loop through each deposit and calculate daily profit
-	for _, d := range deposits {
-		// Determine the profit rate based on the package type
-		var profitRate float64
-		switch strings.ToLower(d.PackageType) {
-		case "test package":
-			profitRate = 0.008 // 0.8%
-		case "pro package":
-			profitRate = 0.01 // 1%
-		case "premium package":
-			profitRate = 0.012 // 1.2%
-		default:
-			continue // Skip unknown packages
+	// ✅ Check if profits were already generated today
+	var existingProfits []models.Profit
+	if err := initializers.DB.Where("DATE(created_at) = ?", todayDate).Find(&existingProfits).Error; err == nil && len(existingProfits) > 0 {
+		// ✅ Return the already generated profits
+		for _, p := range existingProfits {
+			userProfits[p.Email] += p.Amount
 		}
 
-		// Calculate the profit for this deposit
-		profit := d.Amount * profitRate
+		var totalProfits []map[string]interface{}
+		for email, profit := range userProfits {
+			totalProfits = append(totalProfits, map[string]interface{}{
+				"email":  email,
+				"profit": profit,
+			})
+		}
 
-		// Log the individual profit entry for detailed records in the database
-		profitEntry := models.Profit{
+		c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits already generated for today"})
+		return
+	}
+
+	// 🕖 Only allow profit generation after 7AM
+	if currentTime.Hour() < 7 {
+		c.JSON(http.StatusOK, gin.H{"profits": []map[string]interface{}{}, "message": "Profits not yet generated. Check after 7AM"})
+		return
+	}
+
+	// 🚀 Generate profits if not already done
+	initializers.DB.Find(&deposits)
+	for _, d := range deposits {
+		var rate float64
+		switch strings.ToLower(d.PackageType) {
+		case "test":
+			rate = 0.008
+		case "pro":
+			rate = 0.01
+		case "premium":
+			rate = 0.012
+		default:
+			continue
+		}
+
+		profit := d.Amount * rate
+		userProfits[d.Email] += profit
+
+		entry := models.Profit{
 			Email:     d.Email,
 			Amount:    profit,
 			Source:    "daily profit",
-			CreatedAt: time.Now(),
-			Date:      currentTime, // Save the date when the profit was generated
+			CreatedAt: currentTime,
+			Date:      currentTime,
 		}
-
-		// Save the individual profit entry in the Profit table for detailed tracking
-		if err := initializers.DB.Create(&profitEntry).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log profit"})
+		if err := initializers.DB.Create(&entry).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
 			return
 		}
-
-		// Accumulate the profit for the user using email as the key
-		userProfits[d.Email] += profit
 	}
 
-	// Prepare the profit data to send to the frontend
 	var totalProfits []map[string]interface{}
-	for email, totalProfit := range userProfits {
+	for email, profit := range userProfits {
 		totalProfits = append(totalProfits, map[string]interface{}{
 			"email":  email,
-			"profit": totalProfit,
+			"profit": profit,
 		})
 	}
 
-	// Return the accumulated profits (only the total) to the frontend
-	c.JSON(http.StatusOK, gin.H{"profits": totalProfits})
+	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated"})
 }
 
 //
