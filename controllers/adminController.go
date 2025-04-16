@@ -298,7 +298,7 @@ func RejectDeposit(c *gin.Context) {
 	// Find the deposit record that belongs to this user and is still pending
 	var deposit models.Deposit
 	if err := initializers.DB.
-		Where("email = ? AND status = ?", req.Email, "pending").
+		Where("email = ? AND status = ? AND hash = ?", req.Email, "pending", req.Hash).
 		First(&deposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Withdraw not found or already processed"})
 		return
