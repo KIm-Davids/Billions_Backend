@@ -378,11 +378,11 @@ func GenerateDailyProfits(c *gin.Context) {
 		// Determine the profit rate based on the package type
 		var profitRate float64
 		switch strings.ToLower(d.PackageType) {
-		case "test":
+		case "test package":
 			profitRate = 0.008 // 0.8%
-		case "pro":
+		case "pro package":
 			profitRate = 0.01 // 1%
-		case "premium":
+		case "premium package":
 			profitRate = 0.012 // 1.2%
 		default:
 			continue // Skip unknown packages
