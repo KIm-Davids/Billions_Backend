@@ -103,6 +103,7 @@ func main() {
 	router.POST("/confirmDeposits", controllers.ConfirmDeposit)
 	router.POST("/rejectDeposits", controllers.RejectDeposit)
 	router.GET("/fetchDeposits", controllers.GetAllDeposits)
+	router.GET("/fetchWithdrawals", controllers.GetAllWithdrawals)
 
 	router.Run(":8080")
 

@@ -278,8 +278,8 @@ func ConfirmDeposit(c *gin.Context) {
 
 func RejectDeposit(c *gin.Context) {
 	type RejectRequest struct {
-		Email     string `json:"email"`
-		DepositID uint   `json:"deposit_id"` // Or use another identifier
+		Email string `json:"email"`
+		Hash  uint   `json:"hash"` // Or use another identifier
 	}
 
 	var req RejectRequest
@@ -298,9 +298,9 @@ func RejectDeposit(c *gin.Context) {
 	// Find the deposit record that belongs to this user and is still pending
 	var deposit models.Deposit
 	if err := initializers.DB.
-		Where("user_id = ? AND status = ?", user.ID, "pending").
+		Where("email = ? AND status = ?", req.Email, "pending").
 		First(&deposit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found or already processed"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Withdraw not found or already processed"})
 		return
 	}
 
@@ -309,7 +309,7 @@ func RejectDeposit(c *gin.Context) {
 
 	// Save the updated deposit record
 	if err := initializers.DB.Save(&deposit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update deposit status"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update withdraw status"})
 		return
 	}
 
@@ -339,4 +339,29 @@ func GetAllDeposits(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"deposits": deposits})
+}
+
+func GetAllWithdrawals(c *gin.Context) {
+	// Get admin email from query
+	adminEmail := c.Query("email")
+
+	if adminEmail == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	// Check if email is admin
+	if adminEmail != "admin10k4u1234@gmail.com" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: admin access only"})
+		return
+	}
+
+	// Get all withdrawals
+	var withdrawals []models.Withdraw
+	if err := initializers.DB.Order("created_at desc").Find(&withdrawals).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch withdrawals"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"withdrawals": withdrawals})
 }
