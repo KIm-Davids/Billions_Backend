@@ -250,6 +250,7 @@ func WithdrawFromProfits(c *gin.Context) {
 		Amount:          input.Amount,
 		Description:     input.Description,
 		CreatedAt:       time.Now(),
+		ProfitType:      "daily_profit",
 	}
 
 	if err := initializers.DB.Create(&tx).Error; err != nil {
