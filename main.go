@@ -114,6 +114,18 @@ func main() {
 	c = cron.New(cron.WithLocation(location))
 	c.AddFunc("0 7 * * *", controllers.GenerateDailyProfits)
 
+	currentTime := time.Now().In(location)
+
+	// Add 1 minute to the current time to run the job 1 minute ahead
+	nextRunTime := currentTime.Add(1 * time.Minute)
+
+	// Calculate the cron expression based on nextRunTime
+	// The cron format is: minute hour day month weekday
+	cronExpression := fmt.Sprintf("%d %d * * *", nextRunTime.Minute(), nextRunTime.Hour())
+
+	// Add the cron job with the dynamic cron expression
+	c.AddFunc(cronExpression, controllers.GenerateDailyProfits)
+
 	c.Start()
 	select {} // keep the program running
 
