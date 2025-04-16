@@ -232,6 +232,7 @@ func WithdrawFromProfits(c *gin.Context) {
 
 	// Bind incoming JSON request to the Withdraw model
 	if err := c.ShouldBindJSON(&input); err != nil {
+		fmt.Println("Bind error:", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
