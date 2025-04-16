@@ -236,12 +236,12 @@ func WithdrawFromProfits(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-
-	// Ensure that email and amount are provided
-	if input.Email == "" || input.Amount <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email and valid amount are required"})
-		return
-	}
+	//
+	//// Ensure that email and amount are provided
+	//if input.Email == "" || input.Amount <= 0 {
+	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Email and valid amount are required"})
+	//	return
+	//}
 
 	// Find the user by email
 	var user models.User
