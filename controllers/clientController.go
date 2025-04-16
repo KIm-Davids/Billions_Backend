@@ -222,13 +222,9 @@ func Deposit(c *gin.Context) {
 			return
 		}
 
-		// Successfully logged the transaction and updated user balance
-		c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 	}
-	//else {
-	//	// If status is not confirmed, return an appropriate response
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Deposit status not confirmed"})
-	//}
+	// Successfully logged the transaction and updated user balance
+	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
 }
 
 //
