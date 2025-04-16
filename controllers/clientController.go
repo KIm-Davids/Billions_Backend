@@ -231,72 +231,71 @@ func Deposit(c *gin.Context) {
 	//}
 }
 
-func Withdraw(c *gin.Context) {
-	var input models.Withdraw
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-		return
-	}
-
-	// Fetch the user's deposit info to get the deposit date using input.UserID
-	var deposit models.Deposit
-	if err := initializers.DB.Where("user_id = ?", input.UserID).Order("created_at desc").First(&deposit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
-		return
-	}
-
-	// Define withdrawal waiting period per package
-	var waitingPeriodDays int
-	var user models.User
-	if err := initializers.DB.First(&user, input.UserID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	switch strings.ToLower(user.Package) {
-	case "test":
-		waitingPeriodDays = 15
-	case "pro":
-		waitingPeriodDays = 30
-	case "premium":
-		waitingPeriodDays = 40
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown package type"})
-		return
-	}
-
-	// Calculate the earliest withdrawal date (deposit date + waiting period)
-	earliestWithdrawDate := deposit.CreatedAt.Add(time.Duration(waitingPeriodDays) * 24 * time.Hour)
-
-	// Check if the current date is before the earliest withdrawal date
-	if time.Now().Before(earliestWithdrawDate) {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error":       "Withdrawals are not allowed yet",
-			"unlock_date": earliestWithdrawDate.Format("2006-01-02"),
-		})
-		return
-	}
-
-	// Proceed to log withdrawal
-	tx := models.Withdraw{
-		UserID:        input.UserID,
-		SenderName:    input.SenderName,
-		SenderAddress: input.SenderAddress,
-		WalletType:    input.WalletType,
-		Status:        input.Status,
-		Amount:        input.Amount,
-		Description:   input.Description,
-		CreatedAt:     time.Now(),
-	}
-
-	if err := initializers.DB.Create(&tx).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log transaction"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
-}
+//
+//func Withdraw(c *gin.Context) {
+//	var input models.Withdraw
+//
+//	if err := c.ShouldBindJSON(&input); err != nil {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+//		return
+//	}
+//
+//	// Fetch the user's deposit info to get the deposit date using input.UserID
+//	var withdrawal models.Withdraw
+//	if err := initializers.DB.Where("email = ?", input.Email).Order("created_at desc").First(&withdrawal).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
+//		return
+//	}
+//
+//	// Define withdrawal waiting period per package
+//	var waitingPeriodDays int
+//	var user models.User
+//	if err := initializers.DB.First(&user, input.UserID).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+//		return
+//	}
+//
+//	switch strings.ToLower(user.Package) {
+//	case "test":
+//		waitingPeriodDays = 15
+//	case "pro":
+//		waitingPeriodDays = 30
+//	case "premium":
+//		waitingPeriodDays = 40
+//	default:
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown package type"})
+//		return
+//	}
+//
+//	// Calculate the earliest withdrawal date (deposit date + waiting period)
+//	earliestWithdrawDate := deposit.CreatedAt.Add(time.Duration(waitingPeriodDays) * 24 * time.Hour)
+//
+//	// Check if the current date is before the earliest withdrawal date
+//	if time.Now().Before(earliestWithdrawDate) {
+//		c.JSON(http.StatusForbidden, gin.H{
+//			"error":       "Withdrawals are not allowed yet",
+//			"unlock_date": earliestWithdrawDate.Format("2006-01-02"),
+//		})
+//		return
+//	}
+//
+//	// Proceed to log withdrawal
+//	tx := models.Withdraw{
+//		//UserID:      input.UserID,
+//		WalletType:  input.WalletType,
+//		Status:      input.Status,
+//		Amount:      input.Amount,
+//		Description: input.Description,
+//		CreatedAt:   time.Now(),
+//	}
+//
+//	if err := initializers.DB.Create(&tx).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log transaction"})
+//		return
+//	}
+//
+//	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
+//}
 
 func rewardReferrer(referrerID string, referredID string, depositAmount float64) {
 	bonusAmount := depositAmount * 0.05 // For example, 10% of the deposit amount as a bonus
