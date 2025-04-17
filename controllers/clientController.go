@@ -457,7 +457,7 @@ func GenerateDailyProfits(c *gin.Context) {
 	currentTime := time.Now().In(location)
 
 	// Get the time from 3 hours ago
-	threeHoursAgo := currentTime.Add(-3 * time.Hour)
+	threeHoursAgo := currentTime.Add(-6 * time.Hour)
 
 	// Query the database for all users' balances
 	var users []models.User
