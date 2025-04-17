@@ -543,6 +543,7 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated"})
 }
+
 func GetUserWithdrawals(c *gin.Context) {
 	// Get the email from query parameters
 	email := c.Query("email")
