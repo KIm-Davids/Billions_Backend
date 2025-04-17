@@ -446,54 +446,137 @@ var profitRates = map[string]float64{
 }
 
 func GenerateDailyProfits(c *gin.Context) {
-	// Define the structure of the response
-	type UserBalanceResponse struct {
-		Email   string  `json:"email"`
-		Balance float64 `json:"balance"`
+	//var deposits []models.Deposit
+
+	// Define a struct for the request body (email to be passed from the frontend)
+	type ProfitRequest struct {
+		Email string `json:"email"` // The email passed from the frontend
 	}
 
-	// Get the current time in the specified timezone (adjust as necessary)
-	location, _ := time.LoadLocation("Africa/Lagos")
-	currentTime := time.Now().In(location)
+	// Define the structure of the response
+	type ProfitResponse struct {
+		Email  string  `json:"email"`
+		Profit float64 `json:"profit"`
+	}
 
-	// Get the time from 3 hours ago
-	threeHoursAgo := currentTime.Add(-6 * time.Hour)
-
-	// Query the database for all users' balances
-	var users []models.User
-	if err := initializers.DB.Find(&users).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user balances"})
+	// Read the email from the POST request body
+	var requestBody ProfitRequest
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	// Prepare a response for users' balances (optional, for debugging)
-	var userBalances []UserBalanceResponse
+	email := requestBody.Email // The email passed from the frontend
 
-	// Loop through each user and reset their balance to the balance of 3 hours ago
-	for _, user := range users {
-		// Fetch the user's balance from 3 hours ago
-		var previousBalance models.User
-		// Instead of filtering by `updated_at`, directly fetch the last known balance from 3 hours ago
-		if err := initializers.DB.Where("email = ? AND created_at < ?", user.Email, threeHoursAgo).Order("created_at DESC").First(&previousBalance).Error; err != nil {
-			// If no previous balance is found for this user, we skip this user
+	// Prepare the user profits map
+	userProfits := make(map[string]float64)
+
+	location, _ := time.LoadLocation("Africa/Lagos")
+	currentTime := time.Now().In(location)
+
+	// Determine the start and end of the current day
+	startOfDay := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 0, 0, 0, 0, location)
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	// Check if profits have already been generated today
+	var existingProfits []models.Profit
+	if err := initializers.DB.
+		Where("email = ? AND created_at BETWEEN ? AND ?", requestBody.Email, startOfDay, endOfDay).
+		Find(&existingProfits).Error; err == nil && len(existingProfits) > 0 {
+		// Aggregate existing profits for the user
+		for _, p := range existingProfits {
+			userProfits[p.Email] += p.Amount
+		}
+
+		// Return the profit for the specific user if found
+		var totalProfits []ProfitResponse
+		if profit, exists := userProfits[email]; exists {
+			totalProfits = append(totalProfits, ProfitResponse{
+				Email:  email,
+				Profit: profit,
+			})
+		} else {
+			totalProfits = append(totalProfits, ProfitResponse{
+				Email:  email,
+				Profit: 0, // No profit for the user
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits already generated for today"})
+		return
+	}
+
+	// Only allow profit generation after 7AM
+	if currentTime.Hour() < 7 {
+		c.JSON(http.StatusOK, gin.H{"profits": []ProfitResponse{}, "message": "Profits not yet generated. Check after 7AM"})
+		return
+	}
+
+	// 🚀 Generate profits if not already done
+	var deposits []models.Deposit
+	// Fetch deposits for the specific user
+	if err := initializers.DB.Where("email = ?", requestBody.Email).Find(&deposits).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposits"})
+		return
+	}
+	for _, d := range deposits {
+		var rate float64
+		switch strings.ToLower(d.PackageType) {
+		case "test package":
+			rate = 0.008
+		case "pro package":
+			rate = 0.01
+		case "premium package":
+			rate = 0.012
+		default:
 			continue
 		}
 
-		// Update the user's balance to the previous value from 3 hours ago
-		if err := initializers.DB.Model(&user).Update("balance", previousBalance.Balance).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user's balance"})
+		profitAmount := d.Amount * rate
+		userProfits[d.Email] += profitAmount
+
+		// Add a profit record for this user
+		newProfit := models.Profit{
+			Email:     d.Email,
+			Amount:    profitAmount,
+			Source:    "daily profit",
+			CreatedAt: currentTime,
+			Date:      currentTime,
+		}
+		if err := initializers.DB.Create(&newProfit).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
 			return
 		}
 
-		// Add the user's balance to the response list (optional, for debugging)
-		userBalances = append(userBalances, UserBalanceResponse{
-			Email:   user.Email,
-			Balance: previousBalance.Balance,
+		// Increment user's total profit in the database
+		var user models.User
+		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+
+		if err := initializers.DB.Model(&user).
+			Update("profit", gorm.Expr("profit + ?", profitAmount)).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
+			return
+		}
+	}
+
+	// Return the profit for the requested email
+	var totalProfits []ProfitResponse
+	if profit, exists := userProfits[email]; exists {
+		totalProfits = append(totalProfits, ProfitResponse{
+			Email:  email,
+			Profit: profit,
+		})
+	} else {
+		totalProfits = append(totalProfits, ProfitResponse{
+			Email:  email,
+			Profit: 0, // No profit for the user
 		})
 	}
 
-	// Return the list of updated user balances (optional)
-	c.JSON(http.StatusOK, gin.H{"message": "Balances successfully reset to 3 hours ago", "userBalances": userBalances})
+	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated"})
 }
 
 //
