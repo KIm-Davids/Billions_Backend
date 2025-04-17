@@ -480,9 +480,6 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	// Calculate the number of days since the most recent deposit
-	daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
-
 	// Determine the rate based on the package type
 	var rate float64
 	switch strings.ToLower(deposit.PackageType) {
@@ -509,6 +506,10 @@ func GenerateDailyProfits(c *gin.Context) {
 		// If no profit record, use deposit date
 		lastProfitDate = deposit.CreatedAt
 	}
+
+	//
+	//// Calculate the number of days since the most recent deposit
+	//daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
 
 	// ✅ Calculate only new days since last profit
 	daysSinceLastProfit := math.Floor(currentTime.Sub(lastProfitDate).Hours() / 24)
