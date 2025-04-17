@@ -553,13 +553,14 @@ func GetUserWithdrawals(c *gin.Context) {
 
 	// Define the structure of the response
 	type WithdrawResponse struct {
-		Email       string  `json:"email"`
-		Amount      float64 `json:"amount"`
-		Status      string  `json:"status"`
-		CreatedAt   string  `json:"created_at"`
-		Description string  `json:"description"`
-		ProfitType  string  `json:"profit_type"`
-		WalletType  string  `json:"wallet_type"`
+		Email           string  `json:"email"`
+		Amount          float64 `json:"amount"`
+		Status          string  `json:"status"`
+		CreatedAt       string  `json:"created_at"`
+		Description     string  `json:"description"`
+		ProfitType      string  `json:"profit_type"`
+		WalletType      string  `json:"wallet_type"`
+		WithdrawAddress string  `json:"withdrawAddress"`
 	}
 
 	// Prepare the user's withdrawal info
@@ -581,13 +582,14 @@ func GetUserWithdrawals(c *gin.Context) {
 	var withdrawResponse []WithdrawResponse
 	for _, withdrawal := range withdrawals {
 		withdrawResponse = append(withdrawResponse, WithdrawResponse{
-			Email:       withdrawal.Email,
-			Amount:      withdrawal.Amount,
-			Status:      withdrawal.Status,
-			CreatedAt:   withdrawal.CreatedAt.Format("2006-01-02 15:04:05"),
-			Description: withdrawal.Description,
-			ProfitType:  withdrawal.ProfitType,
-			WalletType:  withdrawal.WalletType,
+			Email:           withdrawal.Email,
+			Amount:          withdrawal.Amount,
+			Status:          withdrawal.Status,
+			CreatedAt:       withdrawal.CreatedAt.Format("2006-01-02 15:04:05"),
+			Description:     withdrawal.Description,
+			ProfitType:      withdrawal.ProfitType,
+			WalletType:      withdrawal.WalletType,
+			WithdrawAddress: withdrawal.WithdrawAddress,
 		})
 	}
 
