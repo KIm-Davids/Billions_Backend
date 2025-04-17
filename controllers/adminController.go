@@ -423,3 +423,32 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal confirmed and balance updated"})
 }
+
+func RejectWithdraw(c *gin.Context) {
+	type RejectRequest struct {
+		Email      string `json:"email"`
+		WithdrawID string `json:"withdraw_id"`
+	}
+
+	var req RejectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var withdrawal models.Withdraw
+	if err := initializers.DB.Where("email = ? AND id = ? AND status = ?", req.Email, req.WithdrawID, "pending").
+		First(&withdrawal).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Withdrawal not found or already processed"})
+		return
+	}
+
+	// Update status to rejected
+	withdrawal.Status = "rejected"
+	if err := initializers.DB.Save(&withdrawal).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject withdrawal"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal rejected successfully"})
+}
