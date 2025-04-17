@@ -456,12 +456,12 @@ func GenerateDailyProfits(c *gin.Context) {
 	location, _ := time.LoadLocation("Africa/Lagos")
 	currentTime := time.Now().In(location)
 
-	// Get yesterday's date
-	yesterday := currentTime.Add(-24 * time.Hour)
+	// Get the time from 3 hours ago
+	threeHoursAgo := currentTime.Add(-3 * time.Hour)
 
-	// Query the database for all users' balances as of yesterday
+	// Query the database for all users' balances
 	var users []models.User
-	if err := initializers.DB.Where("updated_at < ?", yesterday).Find(&users).Error; err != nil {
+	if err := initializers.DB.Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user balances"})
 		return
 	}
@@ -469,16 +469,17 @@ func GenerateDailyProfits(c *gin.Context) {
 	// Prepare a response for users' balances (optional, for debugging)
 	var userBalances []UserBalanceResponse
 
-	// Loop through each user and reset their balance
+	// Loop through each user and reset their balance to the balance of 3 hours ago
 	for _, user := range users {
-		// Query for the user's balance from yesterday (using their email)
+		// Fetch the user's balance from 3 hours ago
 		var previousBalance models.User
-		if err := initializers.DB.Where("email = ? AND updated_at < ?", user.Email, yesterday).First(&previousBalance).Error; err != nil {
-			// If no previous balance found, skip this user
+		// Instead of filtering by `updated_at`, directly fetch the last known balance from 3 hours ago
+		if err := initializers.DB.Where("email = ? AND created_at < ?", user.Email, threeHoursAgo).Order("created_at DESC").First(&previousBalance).Error; err != nil {
+			// If no previous balance is found for this user, we skip this user
 			continue
 		}
 
-		// Update the user's balance to the previous value from yesterday
+		// Update the user's balance to the previous value from 3 hours ago
 		if err := initializers.DB.Model(&user).Update("balance", previousBalance.Balance).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user's balance"})
 			return
@@ -492,7 +493,7 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 
 	// Return the list of updated user balances (optional)
-	c.JSON(http.StatusOK, gin.H{"message": "Balances successfully reset to yesterday", "userBalances": userBalances})
+	c.JSON(http.StatusOK, gin.H{"message": "Balances successfully reset to 3 hours ago", "userBalances": userBalances})
 }
 
 //
