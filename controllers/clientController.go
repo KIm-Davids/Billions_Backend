@@ -473,9 +473,9 @@ func GenerateDailyProfits(c *gin.Context) {
 	location, _ := time.LoadLocation("Africa/Lagos")
 	currentTime := time.Now().In(location)
 
-	// Fetch the most recent deposit for the specific user
+	// Fetch the most recent confirmed deposit for the specific user
 	var deposit models.Deposit
-	if err := initializers.DB.Where("email = ?", requestBody.Email).Order("created_at DESC").First(&deposit).Error; err != nil {
+	if err := initializers.DB.Where("email = ? AND status = ?", requestBody.Email, "confirmed").Order("created_at DESC").First(&deposit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposit"})
 		return
 	}
