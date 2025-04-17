@@ -513,54 +513,54 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 
 	// 🚀 Generate profits if not already done
-	var deposits []models.Deposit
-	// Fetch deposits for the specific user
-	if err := initializers.DB.Where("email = ?", requestBody.Email).Find(&deposits).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposits"})
+	var deposit models.Deposit
+	// Fetch the most recent deposit for the specific user
+	if err := initializers.DB.Where("email = ?", requestBody.Email).Order("created_at DESC").First(&deposit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposit"})
 		return
 	}
 
-	for _, d := range deposits {
-		var rate float64
-		switch strings.ToLower(d.PackageType) {
-		case "test package":
-			rate = 0.008
-		case "pro package":
-			rate = 0.01
-		case "premium package":
-			rate = 0.012
-		default:
-			continue
-		}
+	// Calculate profit based on the package type of the most recent deposit
+	var rate float64
+	switch strings.ToLower(deposit.PackageType) {
+	case "test package":
+		rate = 0.008
+	case "pro package":
+		rate = 0.01
+	case "premium package":
+		rate = 0.012
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
+		return
+	}
 
-		profitAmount := d.Amount * rate
-		userProfits[d.Email] += profitAmount
+	profitAmount := deposit.Amount * rate
+	userProfits[deposit.Email] += profitAmount
 
-		// Add a profit record for this user
-		newProfit := models.Profit{
-			Email:     d.Email,
-			Amount:    profitAmount,
-			Source:    "daily profit",
-			CreatedAt: currentTime,
-			Date:      currentTime,
-		}
-		if err := initializers.DB.Create(&newProfit).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
-			return
-		}
+	// Add a profit record for this user
+	newProfit := models.Profit{
+		Email:     deposit.Email,
+		Amount:    profitAmount,
+		Source:    "daily profit",
+		CreatedAt: currentTime,
+		Date:      currentTime,
+	}
+	if err := initializers.DB.Create(&newProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
+		return
+	}
 
-		// Increment user's total profit in the database
-		var user models.User
-		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
-		}
+	// Increment user's total profit in the database
+	var user models.User
+	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
 
-		if err := initializers.DB.Model(&user).
-			Update("profit", gorm.Expr("profit + ?", profitAmount)).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
-			return
-		}
+	if err := initializers.DB.Model(&user).
+		Update("profit", gorm.Expr("profit + ?", profitAmount)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
+		return
 	}
 
 	// Return the profit for the requested email
