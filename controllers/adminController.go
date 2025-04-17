@@ -406,12 +406,12 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 	}
 
 	// Deduct from user's profit (or balance if that's what you're using)
-	if user.Profit < withdrawal.Amount {
+	if user.Balance < withdrawal.Amount {
 		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
 		return
 	}
-	user.Profit -= withdrawal.Amount
+	user.Balance -= withdrawal.Amount
 	if err := tx.Save(&user).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
