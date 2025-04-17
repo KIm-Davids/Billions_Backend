@@ -7,7 +7,7 @@ type Withdraw struct {
 	//SenderName    string    `json:"senderName"`
 	WithdrawAddress string    `json:"withdrawAddress"`
 	Email           string    `json:"email"`
-	WithdrawID      uint      `gorm:"primaryKey;autoIncrement" json:"-"`
+	WithdrawID      uint      `gorm:"primaryKey;autoIncrement" json:"withdrawId"` // ✅ FIXED HERE
 	Status          string    `json:"status"`
 	WalletType      string    `json:"walletType"`
 	Amount          float64   `json:"amount"`
