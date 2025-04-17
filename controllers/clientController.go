@@ -573,7 +573,7 @@ func GetUserWithdrawals(c *gin.Context) {
 
 	// Check if there are no withdrawals found for the user
 	if len(withdrawals) == 0 {
-		c.JSON(http.StatusOK, gin.H{"message": "No pending withdrawal records found"})
+		c.JSON(http.StatusOK, gin.H{"withdrawals": []WithdrawResponse{}})
 		return
 	}
 
