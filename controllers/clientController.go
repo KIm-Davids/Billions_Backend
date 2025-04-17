@@ -591,6 +591,7 @@ func GetUserWithdrawals(c *gin.Context) {
 			ProfitType:      withdrawal.ProfitType,
 			WalletType:      withdrawal.WalletType,
 			WithdrawAddress: withdrawal.WithdrawAddress,
+			WithdrawId:      withdrawal.WithdrawID,
 		})
 	}
 
