@@ -369,8 +369,8 @@ func GetAllWithdrawals(c *gin.Context) {
 
 func ConfirmWithdrawProfit(c *gin.Context) {
 	type ConfirmRequest struct {
-		Email     string `json:"email"`
-		DepositID string `json:"deposit_id"`
+		Email      string `json:"email"`
+		WithdrawId string `json:"withdrawId"`
 	}
 
 	var req ConfirmRequest
