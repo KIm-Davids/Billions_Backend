@@ -447,6 +447,12 @@ var profitRates = map[string]float64{
 
 func GenerateDailyProfits(c *gin.Context) {
 	var deposits []models.Deposit
+
+	type ProfitResponse struct {
+		Email  string  `json:"email"`
+		Profit float64 `json:"profit"`
+	}
+
 	userProfits := make(map[string]float64)
 
 	location, _ := time.LoadLocation("Africa/Lagos")
@@ -469,11 +475,12 @@ func GenerateDailyProfits(c *gin.Context) {
 			userProfits[p.Email] += p.Amount
 		}
 
-		var totalProfits []map[string]interface{}
+		var totalProfits []ProfitResponse
+
 		for email, profit := range userProfits {
-			totalProfits = append(totalProfits, map[string]interface{}{
-				"email":  email,
-				"profit": profit,
+			totalProfits = append(totalProfits, ProfitResponse{
+				Email:  email,
+				Profit: profit,
 			})
 		}
 
