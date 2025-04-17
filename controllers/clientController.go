@@ -521,9 +521,17 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
+	// Update profit
 	if err := initializers.DB.Model(&user).
 		Update("profit", gorm.Expr("profit + ?", profitAmount)).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
+		return
+	}
+
+	// Update balance
+	if err := initializers.DB.Model(&user).
+		Update("balance", gorm.Expr("balance + ?", profitAmount)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
 		return
 	}
 
