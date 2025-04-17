@@ -568,9 +568,9 @@ func GetUserWithdrawals(c *gin.Context) {
 	// Prepare the user's withdrawal info
 	var withdrawals []models.Withdraw
 
-	// Fetch the pending withdrawals associated with the user's email
-	if err := initializers.DB.Where("status = ?", "pending").Find(&withdrawals).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch withdrawal data"})
+	// Find all withdrawal records (no filtering by user)
+	if err := initializers.DB.Find(&withdrawals).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve withdrawals"})
 		return
 	}
 
