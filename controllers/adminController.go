@@ -370,7 +370,7 @@ func GetAllWithdrawals(c *gin.Context) {
 func ConfirmWithdrawProfit(c *gin.Context) {
 	type ConfirmRequest struct {
 		Email      string `json:"email"`
-		WithdrawId string `json:"withdrawId"`
+		WithdrawId uint   `json:"withdrawId"`
 	}
 
 	var req ConfirmRequest
@@ -427,7 +427,7 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 func RejectWithdraw(c *gin.Context) {
 	type RejectRequest struct {
 		Email      string `json:"email"`
-		WithdrawID string `json:"withdraw_id"`
+		WithdrawID uint   `json:"withdrawId"`
 	}
 
 	var req RejectRequest
