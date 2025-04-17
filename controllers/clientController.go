@@ -481,7 +481,7 @@ func GenerateDailyProfits(c *gin.Context) {
 	// Check if profits have already been generated today
 	var existingProfits []models.Profit
 	if err := initializers.DB.
-		Where("created_at BETWEEN ? AND ?", startOfDay, endOfDay).
+		Where("email = ? AND created_at BETWEEN ? AND ?", requestBody.Email, startOfDay, endOfDay).
 		Find(&existingProfits).Error; err == nil && len(existingProfits) > 0 {
 		// Aggregate existing profits for the user
 		for _, p := range existingProfits {
