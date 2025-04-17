@@ -388,7 +388,7 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 
 	// Find the withdrawal record using DepositID, email, and status = "pending"
 	var withdrawal models.Withdraw
-	if err := initializers.DB.Where("email = ? AND status = ? AND deposit_id = ?", req.Email, "pending", req.DepositID).
+	if err := initializers.DB.Where("email = ? AND status = ? AND deposit_id = ?", req.Email, "pending", req.WithdrawId).
 		First(&withdrawal).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Withdrawal not found or already confirmed"})
 		return
