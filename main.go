@@ -107,6 +107,7 @@ func main() {
 	router.POST("/withdrawBalance", controllers.WithdrawFromBalance)
 	router.POST("/withdrawProfit", controllers.WithdrawFromProfits)
 	router.GET("/getAllWithdrawProfit", controllers.GetUserWithdrawals)
+	router.POST("/confirmDailyProfit", controllers.ConfirmWithdrawProfit)
 
 	router.Run(":8080")
 

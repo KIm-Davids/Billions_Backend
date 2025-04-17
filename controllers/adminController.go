@@ -221,6 +221,7 @@ func GetAllUsers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, users)
 }
+
 func ConfirmDeposit(c *gin.Context) {
 	type ConfirmRequest struct {
 		Email string `json:"email"`
@@ -364,4 +365,61 @@ func GetAllWithdrawals(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"withdrawals": withdrawals})
+}
+
+func ConfirmWithdrawProfit(c *gin.Context) {
+	type ConfirmRequest struct {
+		Email     string `json:"email"`
+		DepositID string `json:"deposit_id"`
+	}
+
+	var req ConfirmRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Find the user
+	var user models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Find the withdrawal record using DepositID, email, and status = "pending"
+	var withdrawal models.Withdraw
+	if err := initializers.DB.Where("email = ? AND status = ? AND deposit_id = ?", req.Email, "pending", req.DepositID).
+		First(&withdrawal).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Withdrawal not found or already confirmed"})
+		return
+	}
+
+	// Start a transaction
+	tx := initializers.DB.Begin()
+
+	// Update withdrawal status to completed
+	withdrawal.Status = "completed"
+	if err := tx.Save(&withdrawal).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update withdrawal status"})
+		return
+	}
+
+	// Deduct from user's profit (or balance if that's what you're using)
+	if user.Profit < withdrawal.Amount {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
+		return
+	}
+	user.Profit -= withdrawal.Amount
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+		return
+	}
+
+	// Commit the transaction
+	tx.Commit()
+
+	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal confirmed and balance updated"})
 }
