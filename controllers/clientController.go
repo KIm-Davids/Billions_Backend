@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -446,49 +447,43 @@ var profitRates = map[string]float64{
 }
 
 func GenerateDailyProfits(c *gin.Context) {
+	// Define a struct for the request body (email to be passed from the frontend)
 	type ProfitRequest struct {
-		Email string `json:"email"`
+		Email string `json:"email"` // The email passed from the frontend
 	}
 
+	// Define the structure of the response
 	type ProfitResponse struct {
 		Email  string  `json:"email"`
 		Profit float64 `json:"profit"`
-		Status string  `json:"status"`
 	}
 
-	var req ProfitRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	// Read the email from the POST request body
+	var requestBody ProfitRequest
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
+	email := requestBody.Email // The email passed from the frontend
+
+	// Prepare the user profits map
+	userProfits := make(map[string]float64)
+
 	location, _ := time.LoadLocation("Africa/Lagos")
-	now := time.Now().In(location)
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
-	tomorrow := today.Add(24 * time.Hour)
+	currentTime := time.Now().In(location)
 
-	// Check if profit already added today
-	var existingProfit models.Profit
-	err := initializers.DB.Where("email = ? AND created_at >= ? AND created_at < ?", req.Email, today, tomorrow).
-		First(&existingProfit).Error
-	if err == nil {
-		// Profit already generated for today, just return it
-		c.JSON(http.StatusOK, ProfitResponse{
-			Email:  req.Email,
-			Profit: existingProfit.Amount,
-			Status: "already_generated",
-		})
-		return
-	}
-
-	// Get latest deposit
+	// Fetch the most recent deposit for the specific user
 	var deposit models.Deposit
-	if err := initializers.DB.Where("email = ?", req.Email).Order("created_at DESC").First(&deposit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No deposit found"})
+	if err := initializers.DB.Where("email = ?", requestBody.Email).Order("created_at DESC").First(&deposit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposit"})
 		return
 	}
 
-	// Determine rate based on package
+	// Calculate the number of days since the most recent deposit
+	daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
+
+	// Determine the rate based on the package type
 	var rate float64
 	switch strings.ToLower(deposit.PackageType) {
 	case "test package":
@@ -502,28 +497,51 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	// Calculate profit
-	profitAmount := deposit.Amount * rate
+	// Calculate the profit based on the deposit amount and the number of days
+	profitAmount := deposit.Amount * rate * daysSinceDeposit
+	userProfits[deposit.Email] += profitAmount
 
-	// Save profit record to `profits` table (but NOT to user balance)
+	// Add a profit record for this user
 	newProfit := models.Profit{
-		Email:     req.Email,
+		Email:     deposit.Email,
 		Amount:    profitAmount,
 		Source:    "daily profit",
-		CreatedAt: now,
-		Date:      now,
+		CreatedAt: currentTime,
+		Date:      currentTime,
 	}
 	if err := initializers.DB.Create(&newProfit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit record"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
 		return
 	}
 
-	// Return the calculated profit safely
-	c.JSON(http.StatusOK, ProfitResponse{
-		Email:  req.Email,
-		Profit: profitAmount,
-		Status: "new_generated",
-	})
+	// Increment user's total profit in the database
+	var user models.User
+	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if err := initializers.DB.Model(&user).
+		Update("profit", gorm.Expr("profit + ?", profitAmount)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
+		return
+	}
+
+	// Return the profit for the requested email
+	var totalProfits []ProfitResponse
+	if profit, exists := userProfits[email]; exists {
+		totalProfits = append(totalProfits, ProfitResponse{
+			Email:  email,
+			Profit: profit,
+		})
+	} else {
+		totalProfits = append(totalProfits, ProfitResponse{
+			Email:  email,
+			Profit: 0, // No profit for the user
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated"})
 }
 
 func GetUserWithdrawals(c *gin.Context) {
