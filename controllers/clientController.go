@@ -446,7 +446,7 @@ var profitRates = map[string]float64{
 }
 
 func GenerateDailyProfits(c *gin.Context) {
-	var deposits []models.Deposit
+	//var deposits []models.Deposit
 
 	// Define a struct for the request body (email to be passed from the frontend)
 	type ProfitRequest struct {
@@ -512,8 +512,14 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	// Generate profits if not already done
-	initializers.DB.Find(&deposits)
+	// 🚀 Generate profits if not already done
+	var deposits []models.Deposit
+	// Fetch deposits for the specific user
+	if err := initializers.DB.Where("email = ?", requestBody.Email).Find(&deposits).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposits"})
+		return
+	}
+
 	for _, d := range deposits {
 		var rate float64
 		switch strings.ToLower(d.PackageType) {
@@ -545,7 +551,7 @@ func GenerateDailyProfits(c *gin.Context) {
 
 		// Increment user's total profit in the database
 		var user models.User
-		if err := initializers.DB.Where("email = ?", d.Email).First(&user).Error; err != nil {
+		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}
