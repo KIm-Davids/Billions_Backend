@@ -103,7 +103,7 @@ func main() {
 	router.POST("/rejectDeposits", controllers.RejectDeposit)
 	router.GET("/fetchDeposits", controllers.GetAllDeposits)
 	router.GET("/fetchWithdrawals", controllers.GetAllWithdrawals)
-	router.POST("/getDailyProfit", controllers.GenerateDailyProfits)
+	router.GET("/getDailyProfit", controllers.GenerateDailyProfits)
 	router.POST("/withdrawBalance", controllers.WithdrawFromBalance)
 	router.POST("/withdrawProfit", controllers.WithdrawFromProfits)
 	//router.GET("/getWithdrawProfit", controllers.GetWithdrawFromProfits)
