@@ -437,7 +437,7 @@ func RejectWithdraw(c *gin.Context) {
 	}
 
 	var withdrawal models.Withdraw
-	if err := initializers.DB.Where("email = ? AND id = ? AND status = ?", req.Email, req.WithdrawID, "pending").
+	if err := initializers.DB.Where("email = ? AND withdraw_id = ? AND status = ?", req.Email, req.WithdrawID, "pending").
 		First(&withdrawal).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Withdrawal not found or already processed"})
 		return
