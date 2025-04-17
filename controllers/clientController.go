@@ -543,11 +543,12 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated"})
 }
-
 func GetUserWithdrawals(c *gin.Context) {
-	// Define a struct for the request body (email to be passed from the frontend)
-	type WithdrawRequest struct {
-		Email string `json:"email"` // The email passed from the frontend
+	// Get the email from query parameters
+	email := c.Query("email")
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email query parameter is required"})
+		return
 	}
 
 	// Define the structure of the response
@@ -561,18 +562,11 @@ func GetUserWithdrawals(c *gin.Context) {
 		WalletType  string  `json:"wallet_type"`
 	}
 
-	// Read the email from the POST request body
-	var requestBody WithdrawRequest
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-		return
-	}
-
 	// Prepare the user's withdrawal info
 	var withdrawals []models.Withdraw
 
-	// Fetch the pending withdrawals associated with the user's email from the withdraws table
-	if err := initializers.DB.Where("email = ? AND status = ?", requestBody.Email, "pending").Find(&withdrawals).Error; err != nil {
+	// Fetch the pending withdrawals associated with the user's email
+	if err := initializers.DB.Where("email = ? AND status = ?", email, "pending").Find(&withdrawals).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch withdrawal data"})
 		return
 	}
@@ -583,7 +577,7 @@ func GetUserWithdrawals(c *gin.Context) {
 		return
 	}
 
-	// Prepare the response structure
+	// Prepare the response
 	var withdrawResponse []WithdrawResponse
 	for _, withdrawal := range withdrawals {
 		withdrawResponse = append(withdrawResponse, WithdrawResponse{
@@ -597,7 +591,7 @@ func GetUserWithdrawals(c *gin.Context) {
 		})
 	}
 
-	// Return the withdrawal data in the response
+	// Return the withdrawal data
 	c.JSON(http.StatusOK, gin.H{"withdrawals": withdrawResponse})
 }
 
