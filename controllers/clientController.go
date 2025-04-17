@@ -448,39 +448,57 @@ var profitRates = map[string]float64{
 func GenerateDailyProfits(c *gin.Context) {
 	var deposits []models.Deposit
 
+	// Define a struct for the request body (email to be passed from the frontend)
+	type ProfitRequest struct {
+		Email string `json:"email"` // The email passed from the frontend
+	}
+
+	// Define the structure of the response
 	type ProfitResponse struct {
 		Email  string  `json:"email"`
 		Profit float64 `json:"profit"`
 	}
 
+	// Read the email from the POST request body
+	var requestBody ProfitRequest
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	email := requestBody.Email // The email passed from the frontend
+
+	// Prepare the user profits map
 	userProfits := make(map[string]float64)
 
 	location, _ := time.LoadLocation("Africa/Lagos")
 	currentTime := time.Now().In(location)
-	//todayDate := currentTime.Format("2006-01-02")
-	//if err := initializers.DB.Where("DATE(created_at) = ?", todayDate).Find(&existingProfits).Error; err == nil && len(existingProfits) > 0 {
-	// ✅ Return the already generated profits
 
-	// ✅ Check if profits were already generated today
-
+	// Determine the start and end of the current day
 	startOfDay := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 0, 0, 0, 0, location)
 	endOfDay := startOfDay.Add(24 * time.Hour)
 
+	// Check if profits have already been generated today
 	var existingProfits []models.Profit
 	if err := initializers.DB.
 		Where("created_at BETWEEN ? AND ?", startOfDay, endOfDay).
 		Find(&existingProfits).Error; err == nil && len(existingProfits) > 0 {
-
+		// Aggregate existing profits for the user
 		for _, p := range existingProfits {
 			userProfits[p.Email] += p.Amount
 		}
 
+		// Return the profit for the specific user if found
 		var totalProfits []ProfitResponse
-
-		for email, profit := range userProfits {
+		if profit, exists := userProfits[email]; exists {
 			totalProfits = append(totalProfits, ProfitResponse{
 				Email:  email,
 				Profit: profit,
+			})
+		} else {
+			totalProfits = append(totalProfits, ProfitResponse{
+				Email:  email,
+				Profit: 0, // No profit for the user
 			})
 		}
 
@@ -488,13 +506,13 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	// 🕖 Only allow profit generation after 7AM
+	// Only allow profit generation after 7AM
 	if currentTime.Hour() < 7 {
-		c.JSON(http.StatusOK, gin.H{"profits": []map[string]interface{}{}, "message": "Profits not yet generated. Check after 7AM"})
+		c.JSON(http.StatusOK, gin.H{"profits": []ProfitResponse{}, "message": "Profits not yet generated. Check after 7AM"})
 		return
 	}
 
-	// 🚀 Generate profits if not already done
+	// Generate profits if not already done
 	initializers.DB.Find(&deposits)
 	for _, d := range deposits {
 		var rate float64
@@ -512,7 +530,7 @@ func GenerateDailyProfits(c *gin.Context) {
 		profitAmount := d.Amount * rate
 		userProfits[d.Email] += profitAmount
 
-		// Add a profit record
+		// Add a profit record for this user
 		newProfit := models.Profit{
 			Email:     d.Email,
 			Amount:    profitAmount,
@@ -525,7 +543,7 @@ func GenerateDailyProfits(c *gin.Context) {
 			return
 		}
 
-		// Increment user's total profit
+		// Increment user's total profit in the database
 		var user models.User
 		if err := initializers.DB.Where("email = ?", d.Email).First(&user).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
@@ -539,11 +557,17 @@ func GenerateDailyProfits(c *gin.Context) {
 		}
 	}
 
-	var totalProfits []map[string]interface{}
-	for email, profit := range userProfits {
-		totalProfits = append(totalProfits, map[string]interface{}{
-			"email":  email,
-			"profit": profit,
+	// Return the profit for the requested email
+	var totalProfits []ProfitResponse
+	if profit, exists := userProfits[email]; exists {
+		totalProfits = append(totalProfits, ProfitResponse{
+			Email:  email,
+			Profit: profit,
+		})
+	} else {
+		totalProfits = append(totalProfits, ProfitResponse{
+			Email:  email,
+			Profit: 0, // No profit for the user
 		})
 	}
 
