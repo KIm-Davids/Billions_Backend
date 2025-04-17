@@ -544,7 +544,63 @@ func GenerateDailyProfits(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated"})
 }
 
-//
+func GetUserWithdrawals(c *gin.Context) {
+	// Define a struct for the request body (email to be passed from the frontend)
+	type WithdrawRequest struct {
+		Email string `json:"email"` // The email passed from the frontend
+	}
+
+	// Define the structure of the response
+	type WithdrawResponse struct {
+		Email       string  `json:"email"`
+		Amount      float64 `json:"amount"`
+		Status      string  `json:"status"`
+		CreatedAt   string  `json:"created_at"`
+		Description string  `json:"description"`
+		ProfitType  string  `json:"profit_type"`
+		WalletType  string  `json:"wallet_type"`
+	}
+
+	// Read the email from the POST request body
+	var requestBody WithdrawRequest
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Prepare the user's withdrawal info
+	var withdrawals []models.Withdraw
+
+	// Fetch the pending withdrawals associated with the user's email from the withdraws table
+	if err := initializers.DB.Where("email = ? AND status = ?", requestBody.Email, "pending").Find(&withdrawals).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch withdrawal data"})
+		return
+	}
+
+	// Check if there are no withdrawals found for the user
+	if len(withdrawals) == 0 {
+		c.JSON(http.StatusOK, gin.H{"message": "No pending withdrawal records found"})
+		return
+	}
+
+	// Prepare the response structure
+	var withdrawResponse []WithdrawResponse
+	for _, withdrawal := range withdrawals {
+		withdrawResponse = append(withdrawResponse, WithdrawResponse{
+			Email:       withdrawal.Email,
+			Amount:      withdrawal.Amount,
+			Status:      withdrawal.Status,
+			CreatedAt:   withdrawal.CreatedAt.Format("2006-01-02 15:04:05"),
+			Description: withdrawal.Description,
+			ProfitType:  withdrawal.ProfitType,
+			WalletType:  withdrawal.WalletType,
+		})
+	}
+
+	// Return the withdrawal data in the response
+	c.JSON(http.StatusOK, gin.H{"withdrawals": withdrawResponse})
+}
+
 //func GetUserProfits(c *gin.Context) {
 //	email := c.Query("email")
 //
