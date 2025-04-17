@@ -451,12 +451,18 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	location, _ := time.LoadLocation("Africa/Lagos")
 	currentTime := time.Now().In(location)
-	todayDate := currentTime.Format("2006-01-02")
+	//todayDate := currentTime.Format("2006-01-02")
 
-	// ✅ Check if profits were already generated today
+	// ✅ Check if profits were already generated today using time range to avoid timezone mismatch
 	var existingProfits []models.Profit
-	if err := initializers.DB.Where("DATE(created_at) = ?", todayDate).Find(&existingProfits).Error; err == nil && len(existingProfits) > 0 {
-		// ✅ Return the already generated profits
+
+	startOfDay := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 0, 0, 0, 0, location)
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	if err := initializers.DB.
+		Where("created_at BETWEEN ? AND ?", startOfDay, endOfDay).
+		Find(&existingProfits).Error; err == nil && len(existingProfits) > 0 {
+
 		for _, p := range existingProfits {
 			userProfits[p.Email] += p.Amount
 		}
