@@ -497,8 +497,28 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	// Calculate the profit based on the deposit amount and the number of days
-	profitAmount := deposit.Amount * rate * daysSinceDeposit
+	// ✅ NEW LOGIC: Get the most recent profit entry to avoid duplicate profits
+	var lastProfit models.Profit
+	var lastProfitDate time.Time
+
+	if err := initializers.DB.
+		Where("email = ? AND source = ?", deposit.Email, "daily profit").
+		Order("date DESC").First(&lastProfit).Error; err == nil {
+		lastProfitDate = lastProfit.Date
+	} else {
+		// If no profit record, use deposit date
+		lastProfitDate = deposit.CreatedAt
+	}
+
+	// ✅ Calculate only new days since last profit
+	daysSinceLastProfit := math.Floor(currentTime.Sub(lastProfitDate).Hours() / 24)
+	if daysSinceLastProfit < 1 {
+		c.JSON(http.StatusOK, gin.H{"message": "No new profits to generate"})
+		return
+	}
+
+	// ✅ Calculate profit for new days only
+	profitAmount := deposit.Amount * rate * daysSinceLastProfit
 	userProfits[deposit.Email] += profitAmount
 
 	// Add a profit record for this user
