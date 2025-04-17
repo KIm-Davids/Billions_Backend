@@ -562,6 +562,7 @@ func GetUserWithdrawals(c *gin.Context) {
 		ProfitType      string  `json:"profit_type"`
 		WalletType      string  `json:"wallet_type"`
 		WithdrawAddress string  `json:"withdrawAddress"`
+		WithdrawId      uint    `json:"withdrawId"`
 	}
 
 	// Prepare the user's withdrawal info
