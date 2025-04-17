@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -446,8 +447,6 @@ var profitRates = map[string]float64{
 }
 
 func GenerateDailyProfits(c *gin.Context) {
-	//var deposits []models.Deposit
-
 	// Define a struct for the request body (email to be passed from the frontend)
 	type ProfitRequest struct {
 		Email string `json:"email"` // The email passed from the frontend
@@ -474,53 +473,17 @@ func GenerateDailyProfits(c *gin.Context) {
 	location, _ := time.LoadLocation("Africa/Lagos")
 	currentTime := time.Now().In(location)
 
-	// Determine the start and end of the current day
-	startOfDay := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 0, 0, 0, 0, location)
-	endOfDay := startOfDay.Add(24 * time.Hour)
-
-	// Check if profits have already been generated today
-	var existingProfits []models.Profit
-	if err := initializers.DB.
-		Where("email = ? AND created_at BETWEEN ? AND ?", requestBody.Email, startOfDay, endOfDay).
-		Find(&existingProfits).Error; err == nil && len(existingProfits) > 0 {
-		// Aggregate existing profits for the user
-		for _, p := range existingProfits {
-			userProfits[p.Email] += p.Amount
-		}
-
-		// Return the profit for the specific user if found
-		var totalProfits []ProfitResponse
-		if profit, exists := userProfits[email]; exists {
-			totalProfits = append(totalProfits, ProfitResponse{
-				Email:  email,
-				Profit: profit,
-			})
-		} else {
-			totalProfits = append(totalProfits, ProfitResponse{
-				Email:  email,
-				Profit: 0, // No profit for the user
-			})
-		}
-
-		c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits already generated for today"})
-		return
-	}
-
-	// Only allow profit generation after 7AM
-	if currentTime.Hour() < 7 {
-		c.JSON(http.StatusOK, gin.H{"profits": []ProfitResponse{}, "message": "Profits not yet generated. Check after 7AM"})
-		return
-	}
-
-	// 🚀 Generate profits if not already done
-	var deposit models.Deposit
 	// Fetch the most recent deposit for the specific user
+	var deposit models.Deposit
 	if err := initializers.DB.Where("email = ?", requestBody.Email).Order("created_at DESC").First(&deposit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposit"})
 		return
 	}
 
-	// Calculate profit based on the package type of the most recent deposit
+	// Calculate the number of days since the most recent deposit
+	daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
+
+	// Determine the rate based on the package type
 	var rate float64
 	switch strings.ToLower(deposit.PackageType) {
 	case "test package":
@@ -534,7 +497,8 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	profitAmount := deposit.Amount * rate
+	// Calculate the profit based on the deposit amount and the number of days
+	profitAmount := deposit.Amount * rate * daysSinceDeposit
 	userProfits[deposit.Email] += profitAmount
 
 	// Add a profit record for this user
