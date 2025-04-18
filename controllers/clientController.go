@@ -816,3 +816,37 @@ func GetUserInfo(c *gin.Context) {
 	//}
 
 }
+
+func CountUserReferrals(c *gin.Context) {
+	type ReferralRequest struct {
+		Email string `json:"email"`
+	}
+
+	var request ReferralRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Get the user by email to retrieve their ReferralID
+	var user models.User
+	if err := initializers.DB.Where("email = ?", request.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Count how many users have this user's referral ID as their referrer
+	var count int64
+	if err := initializers.DB.Model(&models.User{}).
+		Where("referrer = ?", user.ReferID).
+		Count(&count).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count referrals"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"email":          user.Email,
+		"referral_id":    user.ReferID,
+		"referral_count": count,
+	})
+}
