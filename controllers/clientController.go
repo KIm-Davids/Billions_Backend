@@ -432,53 +432,55 @@ func WithdrawFromBalance(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Main balance withdrawal logged", "withdrawal": tx})
 }
 
-func rewardReferrer(referrerID string, referredID string, depositAmount float64, referredEmail string) {
-	bonusAmount := depositAmount * 0.05 // For example, 10% of the deposit amount as a bonus
+func RewardReferrer(c *gin.Context) {
+	// Step 1: Get email from request body
+	var req struct {
+		Email string `json:"email"`
+	}
 
-	// Fetch the user by email to get their user ID
-	var referredUser models.User
-	err := initializers.DB.Where("email = ?", referredEmail).First(&referredUser).Error
-	if err != nil {
-		log.Println("Failed to fetch user by email:", err)
+	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing email"})
 		return
 	}
 
-	// Fetch the last deposit for the referred user
-	var lastDeposit models.Deposit
-	err = initializers.DB.Where("email = ?", referredUser.Email).
-		Order("created_at DESC").First(&lastDeposit).Error
-	if err != nil {
-		log.Println("Failed to fetch last deposit:", err)
+	// Step 2: Fetch unprocessed referral bonuses for the user
+	var referralBonuses []models.ReferralBonus
+	if err := initializers.DB.
+		Where("referred_id = ? AND processed = ?", req.Email, false).
+		Find(&referralBonuses).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonuses"})
 		return
 	}
 
-	// Check if the deposit is confirmed
-	if lastDeposit.Status != "confirmed" {
-		log.Println("Last deposit not confirmed, referrer will not be rewarded")
-		return
+	// Step 3: Loop through each bonus and reward referrer if deposit confirmed
+	for _, bonus := range referralBonuses {
+		var deposit models.Deposit
+		if err := initializers.DB.
+			Where("email = ? AND status = ?", bonus.ReferredID, "confirmed").
+			Order("created_at asc").
+			First(&deposit).Error; err != nil {
+			continue // skip if no confirmed deposit yet
+		}
+
+		var referrer models.User
+		if err := initializers.DB.
+			Where("refer_id = ?", bonus.ReferrerID).
+			First(&referrer).Error; err != nil {
+			continue // skip if referrer not found
+		}
+
+		// Credit the bonus to the referrer’s balance
+		referrer.Balance += bonus.Amount
+		if err := initializers.DB.Save(&referrer).Error; err != nil {
+			continue // skip if save failed
+		}
+
+		// Mark bonus as processed
+		bonus.Processed = "true"
+		initializers.DB.Save(&bonus)
 	}
 
-	// Update referrer's balance
-	err = initializers.DB.Model(&models.User{}).
-		Where("refer_id = ?", referrerID).
-		UpdateColumn("balance", gorm.Expr("balance + ?", bonusAmount)).Error
-	if err != nil {
-		log.Println("Failed to reward referrer:", err)
-		return
-	}
-
-	// Log the referral bonus
-	newBonus := models.ReferralBonus{
-		ReferrerID: referrerID,
-		ReferredID: referredID, // The user who made the deposit
-		Amount:     bonusAmount,
-		RewardedAt: time.Now(),
-	}
-
-	// Save the bonus in the ReferralBonus table
-	if err := initializers.DB.Create(&newBonus).Error; err != nil {
-		log.Println("Failed to log referral bonus:", err)
-	}
+	c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses processed successfully"})
 }
 
 var profitRates = map[string]float64{
