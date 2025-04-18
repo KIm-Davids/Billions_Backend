@@ -856,7 +856,6 @@ func CountUserReferrals(c *gin.Context) {
 	}
 
 	// Count how many users have this user's referral ID as their referrer
-	// Count how many users were referred by this user
 	var count int64
 	if err := initializers.DB.Model(&models.User{}).
 		Where("referred_by = ?", user.ReferID).
