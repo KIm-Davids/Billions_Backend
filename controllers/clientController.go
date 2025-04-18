@@ -98,6 +98,17 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
+	// Validate referral code if provided and get the referrer's user ID
+	var referrerID string
+	if req.ReferredBy != "" {
+		var referrer models.User
+		if err := initializers.DB.Where("refer_id = ?", req.ReferredBy).First(&referrer).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid referral code"})
+			return
+		}
+		referrerID = referrer.ReferID
+	}
+
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -123,7 +134,7 @@ func CreateClient(c *gin.Context) {
 		Email:      req.Email,
 		Password:   string(hashedPassword),
 		ReferID:    referID,
-		ReferredBy: req.ReferredBy,
+		ReferredBy: referrerID,
 		Balance:    0.0,
 	}
 
