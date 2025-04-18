@@ -184,18 +184,6 @@ func Deposit(c *gin.Context) {
 	// Check if it's the user's first deposit
 	initializers.DB.Model(&models.Deposit{}).Where("email = ?", input.Email).Count(&depositCount)
 
-	if depositCount == 0 {
-		// Get the user by email
-		var user models.User
-		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err == nil && user.ReferredBy != "" {
-			// Check if the deposit status is confirmed
-			//if input.Status == "confirmed" {
-			// Reward the referrer only if the deposit is confirmed
-			rewardReferrer(user.ReferredBy, user.ReferID, input.Amount, input.Email)
-			//}
-		}
-	}
-
 	// Check for duplicate transaction hash
 	if err := initializers.DB.Where("hash = ?", input.Hash).First(&existingTx).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Transaction hash already exists"})
@@ -234,6 +222,18 @@ func Deposit(c *gin.Context) {
 		if err := initializers.DB.Save(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
 			return
+		}
+
+		if depositCount == 0 {
+			// Get the user by email
+			var user models.User
+			if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err == nil && user.ReferredBy != "" {
+				// Check if the deposit status is confirmed
+				//if input.Status == "confirmed" {
+				// Reward the referrer only if the deposit is confirmed
+				rewardReferrer(user.ReferredBy, user.ReferID, input.Amount, input.Email)
+				//}
+			}
 		}
 
 	}
