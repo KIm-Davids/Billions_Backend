@@ -375,11 +375,11 @@ func WithdrawFromBalance(c *gin.Context) {
 	// Define waiting period for each package
 	var waitingDays int
 	switch strings.ToLower(user.Package) {
-	case "test":
+	case "Test package":
 		waitingDays = 15
-	case "pro":
+	case "Pro package":
 		waitingDays = 30
-	case "premium":
+	case "Premium package":
 		waitingDays = 40
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown package type"})
