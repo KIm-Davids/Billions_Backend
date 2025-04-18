@@ -453,7 +453,7 @@ func RewardReferrer(c *gin.Context) {
 	// Step 2: Fetch unprocessed referral bonuses for the user
 	var referralBonuses []models.ReferralBonus
 	if err := initializers.DB.
-		Where("referred_id = ? AND processed = ?", user.ReferID, false).
+		Where("referred_id = ? AND processed = ?", user.ReferID, "false").
 		Find(&referralBonuses).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonuses"})
 		return
