@@ -184,13 +184,15 @@ func Deposit(c *gin.Context) {
 	// Check if it's the user's first deposit
 	initializers.DB.Model(&models.Deposit{}).Where("email = ?", input.Email).Count(&depositCount)
 
-	// If it's the user's first deposit
 	if depositCount == 0 {
+		// Get the user by email
 		var user models.User
-		// Get the user by input.UserID (this is the referred user)
-		if err := initializers.DB.First(&user, input.Email).Error; err == nil && user.ReferID != "" {
-			// Reward the referrer (e.g., credit a bonus)
-			rewardReferrer(user.ReferID, input.Email, input.Amount)
+		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err == nil && user.ReferredBy != "" {
+			// Check if the deposit status is confirmed
+			if input.Status == "confirmed" {
+				// Reward the referrer only if the deposit is confirmed
+				rewardReferrer(user.ReferredBy, user.ReferID, input.Amount)
+			}
 		}
 	}
 
@@ -430,7 +432,7 @@ func rewardReferrer(referrerID string, referredID string, depositAmount float64)
 
 	// Update referrer's balance
 	err := initializers.DB.Model(&models.User{}).
-		Where("id = ?", referrerID).
+		Where("refer_id = ?", referrerID).
 		UpdateColumn("balance", gorm.Expr("balance + ?", bonusAmount)).Error
 	if err != nil {
 		log.Println("Failed to reward referrer:", err)
