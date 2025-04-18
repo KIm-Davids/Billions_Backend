@@ -443,10 +443,17 @@ func RewardReferrer(c *gin.Context) {
 		return
 	}
 
+	// Step 1: Get user by email
+	var user models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
 	// Step 2: Fetch unprocessed referral bonuses for the user
 	var referralBonuses []models.ReferralBonus
 	if err := initializers.DB.
-		Where("referred_id = ? AND processed = ?", req.Email, false).
+		Where("referred_id = ? AND processed = ?", user.ReferID, false).
 		Find(&referralBonuses).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonuses"})
 		return
@@ -456,7 +463,7 @@ func RewardReferrer(c *gin.Context) {
 	for _, bonus := range referralBonuses {
 		var deposit models.Deposit
 		if err := initializers.DB.
-			Where("email = ? AND status = ?", bonus.ReferredID, "confirmed").
+			Where("email = ? AND status = ?", user.Email, "confirmed").
 			Order("created_at asc").
 			First(&deposit).Error; err != nil {
 			continue // skip if no confirmed deposit yet
