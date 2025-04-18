@@ -487,7 +487,10 @@ func RewardReferrer(c *gin.Context) {
 		initializers.DB.Save(&bonus)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses processed successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Referral bonuses processed successfully",
+		"referral_code": user.ReferID, // or user.ReferredBy depending on what you want to expose
+	})
 }
 
 var profitRates = map[string]float64{
