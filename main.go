@@ -109,6 +109,7 @@ func main() {
 	router.GET("/getAllWithdrawProfit", controllers.GetUserWithdrawals)
 	router.POST("/confirmDailyProfit", controllers.ConfirmWithdrawProfit)
 	router.POST("/rejectWithdraw", controllers.RejectWithdraw)
+	//router.GET("/checkReferralBonus", controllers.RejectWithdraw)
 
 	router.Run(":8080")
 

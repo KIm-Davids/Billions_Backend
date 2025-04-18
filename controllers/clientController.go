@@ -189,10 +189,10 @@ func Deposit(c *gin.Context) {
 		var user models.User
 		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err == nil && user.ReferredBy != "" {
 			// Check if the deposit status is confirmed
-			if input.Status == "confirmed" {
-				// Reward the referrer only if the deposit is confirmed
-				rewardReferrer(user.ReferredBy, user.ReferID, input.Amount)
-			}
+			//if input.Status == "confirmed" {
+			// Reward the referrer only if the deposit is confirmed
+			rewardReferrer(user.ReferredBy, user.ReferID, input.Amount, input.Email)
+			//}
 		}
 	}
 
@@ -427,11 +427,34 @@ func WithdrawFromBalance(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Main balance withdrawal logged", "withdrawal": tx})
 }
 
-func rewardReferrer(referrerID string, referredID string, depositAmount float64) {
+func rewardReferrer(referrerID string, referredID string, depositAmount float64, referredEmail string) {
 	bonusAmount := depositAmount * 0.05 // For example, 10% of the deposit amount as a bonus
 
+	// Fetch the user by email to get their user ID
+	var referredUser models.User
+	err := initializers.DB.Where("email = ?", referredEmail).First(&referredUser).Error
+	if err != nil {
+		log.Println("Failed to fetch user by email:", err)
+		return
+	}
+
+	// Fetch the last deposit for the referred user
+	var lastDeposit models.Deposit
+	err = initializers.DB.Where("user_id = ?", referredUser.ID).
+		Order("created_at DESC").First(&lastDeposit).Error
+	if err != nil {
+		log.Println("Failed to fetch last deposit:", err)
+		return
+	}
+
+	// Check if the deposit is confirmed
+	if lastDeposit.Status != "confirmed" {
+		log.Println("Last deposit not confirmed, referrer will not be rewarded")
+		return
+	}
+
 	// Update referrer's balance
-	err := initializers.DB.Model(&models.User{}).
+	err = initializers.DB.Model(&models.User{}).
 		Where("refer_id = ?", referrerID).
 		UpdateColumn("balance", gorm.Expr("balance + ?", bonusAmount)).Error
 	if err != nil {
