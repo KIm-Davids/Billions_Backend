@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 	"log"
 	"math"
 	"net/http"
@@ -500,43 +499,44 @@ var profitRates = map[string]float64{
 }
 
 func GenerateDailyProfits(c *gin.Context) {
-	// Define a struct for the request body (email to be passed from the frontend)
 	type ProfitRequest struct {
-		Email string `json:"email"` // The email passed from the frontend
+		Email string `json:"email"`
 	}
 
-	// Define the structure of the response
 	type ProfitResponse struct {
 		Email  string  `json:"email"`
 		Profit float64 `json:"profit"`
 	}
 
-	// Read the email from the POST request body
 	var requestBody ProfitRequest
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	email := requestBody.Email // The email passed from the frontend
-
-	// Prepare the user profits map
+	email := requestBody.Email
 	userProfits := make(map[string]float64)
 
 	location, _ := time.LoadLocation("Africa/Lagos")
 	currentTime := time.Now().In(location)
 
-	// Fetch the most recent deposit for the specific user
 	var deposit models.Deposit
-	if err := initializers.DB.Where("email = ?", requestBody.Email).Order("created_at DESC").First(&deposit).Error; err != nil {
+	if err := initializers.DB.Where("email = ?", email).Order("created_at DESC").First(&deposit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposit"})
 		return
 	}
 
-	// Calculate the number of days since the most recent deposit
+	// ✅ Prevent duplicate profit for today
+	var existingProfit models.Profit
+	if err := initializers.DB.
+		Where("email = ? AND DATE(date) = ?", email, currentTime.Format("2006-01-02")).
+		First(&existingProfit).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"message": "Profit already generated for today"})
+		return
+	}
+
 	daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
 
-	// Determine the rate based on the package type
 	var rate float64
 	switch strings.ToLower(deposit.PackageType) {
 	case "test package":
@@ -550,11 +550,14 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	// Calculate the profit based on the deposit amount and the number of days
 	profitAmount := deposit.Amount * rate * daysSinceDeposit
+	if profitAmount <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Profit amount must be greater than zero"})
+		return
+	}
+
 	userProfits[deposit.Email] += profitAmount
 
-	// Add a profit record for this user
 	newProfit := models.Profit{
 		Email:     deposit.Email,
 		Amount:    profitAmount,
@@ -567,20 +570,20 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	// Increment user's total profit in the database
 	var user models.User
 	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	if err := initializers.DB.Model(&user).
-		Update("profit", gorm.Expr("profit + ?", profitAmount)).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
+	// ✅ Update user balance with the daily profit (add it to the user's balance)
+	//user.Balance += profitAmount // Assuming 'Balance' is the field that holds the user's balance
+	user.Profit += profitAmount // Optionally, add profit to a separate profit field
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
 		return
 	}
 
-	// Return the profit for the requested email
 	var totalProfits []ProfitResponse
 	if profit, exists := userProfits[email]; exists {
 		totalProfits = append(totalProfits, ProfitResponse{
@@ -590,11 +593,11 @@ func GenerateDailyProfits(c *gin.Context) {
 	} else {
 		totalProfits = append(totalProfits, ProfitResponse{
 			Email:  email,
-			Profit: 0, // No profit for the user
+			Profit: 0,
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated"})
+	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated and added to balance"})
 }
 
 func GetUserWithdrawals(c *gin.Context) {
