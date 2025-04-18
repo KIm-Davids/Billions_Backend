@@ -170,15 +170,7 @@ func Deposit(c *gin.Context) {
 	// Step 1: Ensure user exists and get their ID
 	var user models.User
 	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-		// If not found, create user
-		//user = models.User{
-		//	Email: input.Email,
-		//	// add other fields as needed (e.g., name, referID, etc.)
-		//}
-		//if err := initializers.DB.Create(&user).Error; err != nil {
-		//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
-		//	return
-		//}
+
 	}
 
 	// Check if it's the user's first deposit
@@ -206,42 +198,48 @@ func Deposit(c *gin.Context) {
 		return
 	}
 
-	// 🔥 Referral logic directly here
-	var referrer models.User
-	if err := initializers.DB.Where("refer_id = ?", user.ReferredBy).First(&referrer).Error; err == nil {
-		// Referrer found, proceed to reward {
-		bonusAmount := input.Amount * 0.05
+	bonusAmount := input.Amount * 0.05
 
-		// Log referral bonus for later processing
+	if err := initializers.DB.
+		Model(&models.Deposit{}).
+		Where("email = ?", user.Email).
+		Count(&depositCount).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count deposits"})
+		return
+	}
+
+	// If this is the user's first-ever deposit (any status)
+	if depositCount == 1 && user.ReferredBy != "" {
+		// Log the referral bonus for processing later
 		referralBonus := models.ReferralBonus{
-			ReferrerID: user.ReferredBy,
-			ReferredID: user.ReferID,
-			Amount:     bonusAmount,
-			RewardedAt: time.Now(),
+			ReferrerID: user.ReferredBy, // should be the referrer’s email or refer_id
+			ReferredID: user.ReferID,    // the new user's ID or refer_id
+			Amount:     bonusAmount,     // maybe based on % of deposit
 			Processed:  "false",
+			RewardedAt: time.Now(),
 		}
 
 		if err := initializers.DB.Create(&referralBonus).Error; err != nil {
 			log.Println("Failed to log referral bonus:", err)
 		}
+	}
 
-		// Update the user's balance if the deposit status is confirmed
-		if input.Status == "confirmed" {
-			var user models.User
-			if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-				return
-			}
+	// Update the user's balance if the deposit status is confirmed
+	if input.Status == "confirmed" {
+		var user models.User
+		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
 
-			user.Balance += input.Amount
+		user.Balance += input.Amount
 
-			// Update the user's package field based on the deposit package type
-			user.Package = input.PackageType // Set the user's package to the package type of this deposit
+		// Update the user's package field based on the deposit package type
+		user.Package = input.PackageType // Set the user's package to the package type of this deposit
 
-			if err := initializers.DB.Save(&user).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
-				return
-			}
+		if err := initializers.DB.Save(&user).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+			return
 		}
 	}
 	// Successfully logged the transaction and updated user balance
