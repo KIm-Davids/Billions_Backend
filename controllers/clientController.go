@@ -225,7 +225,9 @@ func Deposit(c *gin.Context) {
 		}
 
 		// 🔥 Referral logic directly here
-		if depositCount == 0 && user.ReferredBy != "" {
+		var referrer models.User
+		if err := initializers.DB.Where("refer_id = ?", user.ReferredBy).First(&referrer).Error; err == nil {
+			// Referrer found, proceed to reward {
 			bonusAmount := input.Amount * 0.05
 
 			// Log referral bonus for later processing
@@ -240,6 +242,15 @@ func Deposit(c *gin.Context) {
 			if err := initializers.DB.Create(&referralBonus).Error; err != nil {
 				log.Println("Failed to log referral bonus:", err)
 			}
+
+			// Credit referrer's balance now
+			if err := initializers.DB.Model(&models.User{}).
+				Where("refer_id = ?", user.ReferredBy).
+				Update("balance", gorm.Expr("balance + ?", bonusAmount)).Error; err != nil {
+				log.Println("Failed to credit referrer:", err)
+			}
+		} else {
+			log.Println("Invalid referrer ID:", user.ReferredBy)
 		}
 	}
 
