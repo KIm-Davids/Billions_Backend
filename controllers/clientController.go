@@ -374,7 +374,7 @@ func WithdrawFromBalance(c *gin.Context) {
 
 	// Define waiting period for each package
 	var waitingDays int
-	switch strings.ToLower(user.Package) {
+	switch strings.ToLower(latestDeposit.PackageType) {
 	case "Test package":
 		waitingDays = 15
 	case "Pro package":
