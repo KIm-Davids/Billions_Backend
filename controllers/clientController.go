@@ -440,7 +440,7 @@ func rewardReferrer(referrerID string, referredID string, depositAmount float64,
 
 	// Fetch the last deposit for the referred user
 	var lastDeposit models.Deposit
-	err = initializers.DB.Where("user_id = ?", referredUser.ID).
+	err = initializers.DB.Where("email = ?", referredUser.Email).
 		Order("created_at DESC").First(&lastDeposit).Error
 	if err != nil {
 		log.Println("Failed to fetch last deposit:", err)
