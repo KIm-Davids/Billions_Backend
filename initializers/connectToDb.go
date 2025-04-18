@@ -25,7 +25,7 @@ func ConnectToDb() {
 	database.AutoMigrate(&models.Deposit{})
 	database.AutoMigrate(&models.Withdraw{})
 	database.AutoMigrate(&models.Profit{})
-	//database.AutoMigrate(&models.ReferralBonus{})
+	database.AutoMigrate(&models.ReferralBonus{})
 
 	//database.AutoMigrate(&models.Admin{})
 	//database.AutoMigrate(&models.Client{})
