@@ -418,8 +418,8 @@ func WithdrawFromBalance(c *gin.Context) {
 		Status:      input.Status,
 		Amount:      input.Amount,
 		Description: input.Description,
-		//Source:      "main", // Indicate it's from the main balance
-		CreatedAt: time.Now(),
+		Source:      "main", // Indicate it's from the main balance
+		CreatedAt:   time.Now(),
 	}
 
 	// Save the withdrawal record
