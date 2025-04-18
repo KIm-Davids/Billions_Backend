@@ -224,7 +224,7 @@ func Deposit(c *gin.Context) {
 			return
 		}
 
-		if depositCount == 0 {
+		if depositCount >= 0 {
 			// Get the user by email
 			var user models.User
 			if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err == nil && user.ReferredBy != "" {
