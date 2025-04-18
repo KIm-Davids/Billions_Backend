@@ -209,20 +209,20 @@ func Deposit(c *gin.Context) {
 	}
 
 	// If this is the user's first-ever deposit (any status)
-	if depositCount == 1 && user.ReferredBy != "" {
-		// Log the referral bonus for processing later
-		referralBonus := models.ReferralBonus{
-			ReferrerID: user.ReferredBy, // should be the referrer’s email or refer_id
-			ReferredID: user.ReferID,    // the new user's ID or refer_id
-			Amount:     bonusAmount,     // maybe based on % of deposit
-			Processed:  "false",
-			RewardedAt: time.Now(),
-		}
-
-		if err := initializers.DB.Create(&referralBonus).Error; err != nil {
-			log.Println("Failed to log referral bonus:", err)
-		}
+	//if depositCount == 1 && user.ReferredBy != "" {
+	// Log the referral bonus for processing later
+	referralBonus := models.ReferralBonus{
+		ReferrerID: user.ReferredBy, // should be the referrer’s email or refer_id
+		ReferredID: user.ReferID,    // the new user's ID or refer_id
+		Amount:     bonusAmount,     // maybe based on % of deposit
+		Processed:  "false",
+		RewardedAt: time.Now(),
 	}
+
+	if err := initializers.DB.Create(&referralBonus).Error; err != nil {
+		log.Println("Failed to log referral bonus:", err)
+	}
+	//}
 
 	// Update the user's balance if the deposit status is confirmed
 	if input.Status == "confirmed" {
