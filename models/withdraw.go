@@ -15,5 +15,6 @@ type Withdraw struct {
 	Description     string    `json:"description"`
 	Source          string
 	ProfitType      string `json:"profitType"`
+	PackageType     string `json:"packageType"`
 	//WithdrawDate
 }
