@@ -616,6 +616,7 @@ func GetUserWithdrawals(c *gin.Context) {
 		WalletType      string  `json:"wallet_type"`
 		WithdrawAddress string  `json:"withdrawAddress"`
 		WithdrawId      uint    `json:"withdrawId"`
+		Source          string  `json:"source"` // ← Added `json` tag here
 	}
 
 	// Prepare the user's withdrawal info
@@ -646,6 +647,8 @@ func GetUserWithdrawals(c *gin.Context) {
 			WalletType:      withdrawal.WalletType,
 			WithdrawAddress: withdrawal.WithdrawAddress,
 			WithdrawId:      withdrawal.WithdrawID,
+			Source:          "main", // ← You can change this to anything meaningful
+
 		})
 	}
 
