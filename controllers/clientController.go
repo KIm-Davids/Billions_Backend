@@ -600,6 +600,26 @@ func GenerateDailyProfits(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated and added to balance"})
 }
 
+func GetReferralCode(c *gin.Context) {
+	type RequestBody struct {
+		Email string `json:"email"`
+	}
+
+	var req RequestBody
+	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email"})
+		return
+	}
+
+	var user models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"referral_code": user.ReferID})
+}
+
 func GetUserWithdrawals(c *gin.Context) {
 	// Get the email from query parameters
 	email := c.Query("email")
