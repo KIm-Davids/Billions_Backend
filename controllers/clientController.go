@@ -471,7 +471,7 @@ func RewardReferrer(c *gin.Context) {
 
 		var referrer models.User
 		if err := initializers.DB.
-			Where("refer_id = ?", bonus.ReferrerID).
+			Where("refer_id = ?", user.ReferredBy).
 			First(&referrer).Error; err != nil {
 			continue // skip if referrer not found
 		}
