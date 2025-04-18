@@ -382,7 +382,7 @@ func WithdrawFromBalance(c *gin.Context) {
 	case "Premium package":
 		waitingDays = 40
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown package type", "Package type": user.Package})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown package type", "Package type": user})
 		return
 	}
 
