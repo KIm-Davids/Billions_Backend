@@ -489,7 +489,7 @@ func RewardReferrer(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":       "Referral bonuses processed successfully",
-		"referral_code": user.ReferID, // or user.ReferredBy depending on what you want to expose
+		"referral_code": user.ReferredBy, // or user.ReferredBy depending on what you want to expose
 	})
 }
 
