@@ -458,6 +458,13 @@ func RewardReferrer(c *gin.Context) {
 		return
 	}
 
+	// ✅ Step 2.5: Check if it's 6 PM
+	currentTime := time.Now()
+	if currentTime.Hour() != 18 {
+		c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only processed at 6 PM"})
+		return
+	}
+
 	// Step 3: Loop through each bonus and reward referrer if deposit confirmed
 	for _, bonus := range referralBonuses {
 		var deposit models.Deposit
@@ -558,6 +565,7 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	userProfits[deposit.Email] += profitAmount
 
+	// ✅ Save the profit record (but don’t add to balance yet)
 	newProfit := models.Profit{
 		Email:     deposit.Email,
 		Amount:    profitAmount,
@@ -570,18 +578,30 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	var user models.User
-	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
+	// ✅ Check if it's after 6PM in Africa/Lagos
+	sixPM := time.Date(
+		currentTime.Year(), currentTime.Month(), currentTime.Day(),
+		18, 0, 0, 0, location,
+	)
 
-	// ✅ Update user balance with the daily profit (add it to the user's balance)
-	//user.Balance += profitAmount // Assuming 'Balance' is the field that holds the user's balance
-	user.Profit += profitAmount // Optionally, add profit to a separate profit field
-	if err := initializers.DB.Save(&user).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
-		return
+	msg := "Profit calculated and returned. Will be added to balance at 6PM."
+
+	if currentTime.After(sixPM) {
+		var user models.User
+		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+
+		user.Balance += profitAmount
+		user.Profit += profitAmount
+
+		if err := initializers.DB.Save(&user).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+			return
+		}
+
+		msg = "Profit calculated and added to balance (after 6PM)."
 	}
 
 	var totalProfits []ProfitResponse
@@ -591,14 +611,11 @@ func GenerateDailyProfits(c *gin.Context) {
 			Profit: profit,
 		})
 	}
-	//else {
-	//	totalProfits = append(totalProfits, ProfitResponse{
-	//		Email:  email,
-	//		Profit: 0,
-	//	})
-	//}
 
-	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated and added to balance"})
+	c.JSON(http.StatusOK, gin.H{
+		"profits": totalProfits,
+		"message": msg,
+	})
 }
 
 func GetReferralCode(c *gin.Context) {
