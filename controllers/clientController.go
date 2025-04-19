@@ -505,6 +505,133 @@ var profitRates = map[string]float64{
 	"premium": 0.02,
 }
 
+//
+//func GenerateDailyProfits(c *gin.Context) {
+//	type ProfitRequest struct {
+//		Email string `json:"email"`
+//	}
+//
+//	type ProfitResponse struct {
+//		Email  string  `json:"email"`
+//		Profit float64 `json:"profit"`
+//	}
+//
+//	var requestBody ProfitRequest
+//	if err := c.ShouldBindJSON(&requestBody); err != nil {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+//		return
+//	}
+//
+//	email := requestBody.Email
+//	userProfits := make(map[string]float64)
+//
+//	location, _ := time.LoadLocation("Africa/Lagos")
+//	currentTime := time.Now().In(location)
+//
+//	var deposit models.Deposit
+//	if err := initializers.DB.Where("email = ?", email).Order("created_at DESC").First(&deposit).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposit"})
+//		return
+//	}
+//
+//	//✅ Prevent duplicate profit for today
+//	var existingProfit models.Profit
+//	if err := initializers.DB.
+//		Where("email = ? AND DATE(date) = ?", email, currentTime.Format("2006-01-02")).
+//		First(&existingProfit).Error; err == nil {
+//		c.JSON(http.StatusConflict, gin.H{"message": "Profit already generated for today"})
+//		return
+//	}
+//
+//	daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
+//
+//	var rate float64
+//	switch strings.ToLower(deposit.PackageType) {
+//	case "test package":
+//		rate = 0.008
+//	case "pro package":
+//		rate = 0.01
+//	case "premium package":
+//		rate = 0.012
+//	default:
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
+//		return
+//	}
+//
+//	profitAmount := deposit.Amount * rate * daysSinceDeposit
+//	if profitAmount <= 0 {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Profit amount must be greater than zero"})
+//		return
+//	}
+//
+//	userProfits[deposit.Email] += profitAmount
+//
+//	// ✅ Save the profit record (but don’t add to balance yet)
+//	newProfit := models.Profit{
+//		Email:     deposit.Email,
+//		Amount:    profitAmount,
+//		Source:    "daily profit",
+//		CreatedAt: currentTime,
+//		Date:      currentTime,
+//	}
+//	if err := initializers.DB.Create(&newProfit).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
+//		return
+//	}
+//
+//	msg := "Profit calculated and returned. Will be added to balance at 6PM."
+//
+//	var totalProfits []ProfitResponse
+//	if profit, exists := userProfits[email]; exists {
+//		totalProfits = append(totalProfits, ProfitResponse{
+//			Email:  email,
+//			Profit: profit,
+//		})
+//	}
+//
+//	c.JSON(http.StatusOK, gin.H{
+//		"profits": totalProfits,
+//		"message": msg,
+//	})
+//
+//	// ✅ Check if it's after 6PM in Africa/Lagos
+//	sixPM := time.Date(
+//		currentTime.Year(), currentTime.Month(), currentTime.Day(),
+//		18, 0, 0, 0, location,
+//	)
+//
+//	if currentTime.After(sixPM) {
+//		var user models.User
+//		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+//			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+//			return
+//		}
+//
+//		user.Balance += profitAmount
+//		user.Profit += profitAmount
+//
+//		if err := initializers.DB.Save(&user).Error; err != nil {
+//			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+//			return
+//		}
+//
+//		msg = "Profit calculated and added to balance (after 6PM)."
+//	}
+//
+//	//var totalProfits []ProfitResponse
+//	if profit, exists := userProfits[email]; exists {
+//		totalProfits = append(totalProfits, ProfitResponse{
+//			Email:  email,
+//			Profit: profit,
+//		})
+//	}
+//
+//	c.JSON(http.StatusOK, gin.H{
+//		"profits": totalProfits,
+//		"message": msg,
+//	})
+//}
+
 func GenerateDailyProfits(c *gin.Context) {
 	type ProfitRequest struct {
 		Email string `json:"email"`
@@ -522,28 +649,37 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 
 	email := requestBody.Email
-	userProfits := make(map[string]float64)
-
 	location, _ := time.LoadLocation("Africa/Lagos")
 	currentTime := time.Now().In(location)
 
+	// ✅ Check for existing profit for today
+	var existingProfit models.Profit
+	if err := initializers.DB.
+		Where("email = ? AND DATE(date) = ?", email, currentTime.Format("2006-01-02")).
+		First(&existingProfit).Error; err == nil {
+		c.JSON(http.StatusOK, gin.H{
+			"profits": []ProfitResponse{
+				{
+					Email:  existingProfit.Email,
+					Profit: existingProfit.Amount,
+				},
+			},
+			"message": "Profit already generated for today",
+		})
+		return
+	}
+
+	// ✅ Get user's latest deposit
 	var deposit models.Deposit
 	if err := initializers.DB.Where("email = ?", email).Order("created_at DESC").First(&deposit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposit"})
 		return
 	}
 
-	//✅ Prevent duplicate profit for today
-	var existingProfit models.Profit
-	if err := initializers.DB.
-		Where("email = ? AND DATE(date) = ?", email, currentTime.Format("2006-01-02")).
-		First(&existingProfit).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{"message": "Profit already generated for today"})
-		return
-	}
-
+	// ✅ Calculate days since deposit
 	daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
 
+	// ✅ Determine rate based on package
 	var rate float64
 	switch strings.ToLower(deposit.PackageType) {
 	case "test package":
@@ -557,15 +693,14 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
+	// ✅ Calculate profit
 	profitAmount := deposit.Amount * rate * daysSinceDeposit
 	if profitAmount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Profit amount must be greater than zero"})
 		return
 	}
 
-	userProfits[deposit.Email] += profitAmount
-
-	// ✅ Save the profit record (but don’t add to balance yet)
+	// ✅ Save the profit record
 	newProfit := models.Profit{
 		Email:     deposit.Email,
 		Amount:    profitAmount,
@@ -578,27 +713,13 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
-	msg := "Profit calculated and returned. Will be added to balance at 6PM."
-
-	var totalProfits []ProfitResponse
-	if profit, exists := userProfits[email]; exists {
-		totalProfits = append(totalProfits, ProfitResponse{
-			Email:  email,
-			Profit: profit,
-		})
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"profits": totalProfits,
-		"message": msg,
-	})
-
 	// ✅ Check if it's after 6PM in Africa/Lagos
 	sixPM := time.Date(
 		currentTime.Year(), currentTime.Month(), currentTime.Day(),
 		18, 0, 0, 0, location,
 	)
 
+	message := "Profit calculated and returned. Will be added to balance at 6PM."
 	if currentTime.After(sixPM) {
 		var user models.User
 		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
@@ -614,20 +735,18 @@ func GenerateDailyProfits(c *gin.Context) {
 			return
 		}
 
-		msg = "Profit calculated and added to balance (after 6PM)."
+		message = "Profit calculated and added to balance (after 6PM)."
 	}
 
-	//var totalProfits []ProfitResponse
-	if profit, exists := userProfits[email]; exists {
-		totalProfits = append(totalProfits, ProfitResponse{
-			Email:  email,
-			Profit: profit,
-		})
-	}
-
+	// ✅ Return profit response
 	c.JSON(http.StatusOK, gin.H{
-		"profits": totalProfits,
-		"message": msg,
+		"profits": []ProfitResponse{
+			{
+				Email:  email,
+				Profit: profitAmount,
+			},
+		},
+		"message": message,
 	})
 }
 
