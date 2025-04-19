@@ -578,13 +578,26 @@ func GenerateDailyProfits(c *gin.Context) {
 		return
 	}
 
+	msg := "Profit calculated and returned. Will be added to balance at 6PM."
+
+	var totalProfits []ProfitResponse
+	if profit, exists := userProfits[email]; exists {
+		totalProfits = append(totalProfits, ProfitResponse{
+			Email:  email,
+			Profit: profit,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"profits": totalProfits,
+		"message": msg,
+	})
+
 	// ✅ Check if it's after 6PM in Africa/Lagos
 	sixPM := time.Date(
 		currentTime.Year(), currentTime.Month(), currentTime.Day(),
 		18, 0, 0, 0, location,
 	)
-
-	msg := "Profit calculated and returned. Will be added to balance at 6PM."
 
 	if currentTime.After(sixPM) {
 		var user models.User
@@ -604,7 +617,7 @@ func GenerateDailyProfits(c *gin.Context) {
 		msg = "Profit calculated and added to balance (after 6PM)."
 	}
 
-	var totalProfits []ProfitResponse
+	//var totalProfits []ProfitResponse
 	if profit, exists := userProfits[email]; exists {
 		totalProfits = append(totalProfits, ProfitResponse{
 			Email:  email,
