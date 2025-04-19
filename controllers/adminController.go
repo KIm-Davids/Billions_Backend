@@ -524,6 +524,7 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
+	//Return net profit
 	var netProfit float64
 	if err := initializers.DB.Model(&models.Profit{}).
 		Where("email = ?", req.Email).
@@ -532,7 +533,6 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	//Return net profit
 	var latestProfit models.Profit
 	if err := initializers.DB.
 		Where("email = ? AND amount > 0", req.Email).
