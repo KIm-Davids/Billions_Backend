@@ -529,6 +529,32 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal confirmed and deducted from profits"})
 }
 
+func GetProfitBalance(c *gin.Context) {
+	type RequestBody struct {
+		Email string `json:"email"`
+	}
+
+	var req RequestBody
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var netProfit float64
+	if err := initializers.DB.Model(&models.Profit{}).
+		Where("email = ?", req.Email).
+		Select("SUM(amount)").Scan(&netProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch profit balance"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"email":      req.Email,
+		"net_profit": netProfit,
+		"message":    "Current profit balance fetched successfully",
+	})
+}
+
 func RejectWithdraw(c *gin.Context) {
 	type RejectRequest struct {
 		Email      string `json:"email"`
