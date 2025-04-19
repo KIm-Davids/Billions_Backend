@@ -733,15 +733,12 @@ func GenerateDailyProfits(c *gin.Context) {
 		//message = "Profit calculated and added to balance (after 6PM)."
 	}
 
-	var netProfit models.Profit
-
 	if profitGeneratedToday {
 		c.JSON(http.StatusOK, gin.H{
 			"profits": []ProfitResponse{
 				{
-					Email:     existingProfit.Email,
-					Profit:    existingProfit.Amount,
-					NetProfit: netProfit,
+					Email:  existingProfit.Email,
+					Profit: existingProfit.Amount,
 				},
 			},
 			"message": "Profit already generated for today",
