@@ -8,6 +8,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"log"
+	"os"
 	"time"
 )
 
@@ -113,8 +114,12 @@ func main() {
 	router.POST("/getReferCount", controllers.CountUserReferrals)
 	router.POST("/getReferrerCode", controllers.GetReferralCode)
 
-	router.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
+	router.Run(":" + port)
 	//c := cron.New()
 
 	// Run daily at 7 AM
