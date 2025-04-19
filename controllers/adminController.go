@@ -508,20 +508,43 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	// Add negative profit entry to deduct withdrawn amount
-	deduction := models.Profit{
+	// ✅ 3. Calculate available profit balance
+	netProfit := totalProfit - withdrawal.Amount
+
+	c.JSON(http.StatusOK, gin.H{
+		//"email":       email,
+		"net_profit":   netProfit,
+		"total_earned": totalProfit,
+		//"withdrawn":   withdrawnProfit,
+	})
+
+	profitEntry := models.Profit{
 		Email:     req.Email,
-		Amount:    -withdrawal.Amount,
-		Source:    "withdrawal",
-		CreatedAt: time.Now(),
+		Amount:    netProfit,
+		Source:    "profit after withdrawal", // or "profit after withdrawal"
 		Date:      time.Now(),
+		CreatedAt: time.Now(),
 	}
 
-	if err := tx.Create(&deduction).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal deduction"})
+	if err := initializers.DB.Create(&profitEntry).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save net profit"})
 		return
 	}
+
+	//// Add negative profit entry to deduct withdrawn amount
+	//deduction := models.Profit{
+	//	Email:     req.Email,
+	//	Amount:    -withdrawal.Amount,
+	//	Source:    "withdrawal",
+	//	CreatedAt: time.Now(),
+	//	Date:      time.Now(),
+	//}
+	//
+	//if err := tx.Create(&deduction).Error; err != nil {
+	//	tx.Rollback()
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal deduction"})
+	//	return
+	//}
 
 	// Commit the transaction
 	tx.Commit()
