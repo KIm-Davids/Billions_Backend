@@ -829,6 +829,61 @@ func GetUserWithdrawals(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"withdrawals": withdrawResponse})
 }
 
+func CalculateAndSaveNetProfit(c *gin.Context) {
+	type Request struct {
+		Email string `json:"email"`
+	}
+
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	email := req.Email
+
+	var latestProfit models.Profit
+	if err := initializers.DB.
+		Where("email = ? AND amount > 0", email).
+		Order("created_at DESC").
+		First(&latestProfit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No profit record found"})
+		return
+	}
+
+	var latestWithdrawal models.Withdraw
+	if err := initializers.DB.
+		Where("email = ? AND status = ?", email, "completed").
+		Order("created_at DESC").
+		First(&latestWithdrawal).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No withdrawal record found"})
+		return
+	}
+
+	// 🧮 Calculate net profit
+	netProfit := latestProfit.Amount - latestWithdrawal.Amount
+
+	// 📝 Save net profit back to profit table
+	netProfitEntry := models.Profit{
+		Email:     email,
+		Amount:    netProfit,
+		Source:    "net profit calculation",
+		Date:      time.Now(),
+		CreatedAt: time.Now(),
+	}
+
+	if err := initializers.DB.Create(&netProfitEntry).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save net profit"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Net profit calculated and saved",
+		"net_profit":  netProfit,
+		"saved_entry": netProfitEntry,
+	})
+}
+
 //func GetUserProfits(c *gin.Context) {
 //	email := c.Query("email")
 //
