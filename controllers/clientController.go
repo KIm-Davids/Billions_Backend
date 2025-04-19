@@ -638,8 +638,9 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 
 	type ProfitResponse struct {
-		Email  string  `json:"email"`
-		Profit float64 `json:"profit"`
+		Email     string  `json:"email"`
+		Profit    float64 `json:"profit"`
+		NetProfit interface{}
 	}
 
 	var requestBody ProfitRequest
@@ -738,12 +739,15 @@ func GenerateDailyProfits(c *gin.Context) {
 		message = "Profit calculated and added to balance (after 6PM)."
 	}
 
+	var netProfit models.Profit
+
 	// ✅ Return profit response
 	c.JSON(http.StatusOK, gin.H{
 		"profits": []ProfitResponse{
 			{
-				Email:  email,
-				Profit: profitAmount,
+				Email:     email,
+				Profit:    profitAmount,
+				NetProfit: netProfit,
 			},
 		},
 		"message": message,
