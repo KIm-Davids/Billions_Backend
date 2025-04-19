@@ -590,12 +590,13 @@ func GenerateDailyProfits(c *gin.Context) {
 			Email:  email,
 			Profit: profit,
 		})
-	} else {
-		totalProfits = append(totalProfits, ProfitResponse{
-			Email:  email,
-			Profit: 0,
-		})
 	}
+	//else {
+	//	totalProfits = append(totalProfits, ProfitResponse{
+	//		Email:  email,
+	//		Profit: 0,
+	//	})
+	//}
 
 	c.JSON(http.StatusOK, gin.H{"profits": totalProfits, "message": "Profits successfully generated and added to balance"})
 }
