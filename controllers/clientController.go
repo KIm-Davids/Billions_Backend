@@ -512,11 +512,11 @@ func RewardReferrer(c *gin.Context) {
 		return
 	}
 
-	currentTime := time.Now()
-	if currentTime.Hour() != 18 {
-		c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only processed at 6 PM"})
-		return
-	}
+	//currentTime := time.Now()
+	//if currentTime.Hour() != 18 {
+	//	c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only processed at 6 PM"})
+	//	return
+	//}
 
 	// Check if bonus already processed
 	var existingBonus models.ReferralBonus
