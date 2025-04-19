@@ -4,7 +4,6 @@ import (
 	"JWTProject/controllers"
 	"JWTProject/initializers"
 	"database/sql"
-	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"log"
@@ -18,43 +17,43 @@ func init() {
 	initializers.SyncDatabase()
 }
 
-// Transaction struct matches the table schema
-type Transaction struct {
-	UserID        uint      `json:"user_id"`
-	SenderName    string    `json:"senderName"`
-	SenderAddress string    `json:"senderAddress"`
-	Type          string    `json:"transactionType"`
-	Status        string    `json:"status"`
-	PackageType   string    `json:"packageType"`
-	Amount        float64   `json:"amount"`
-	Description   string    `json:"description"`
-	CreatedAt     time.Time `json:"created_at"`
-}
-
-func createTableIfNotExists(db *sql.DB) {
-	// SQL query to create the table based on the Transaction struct
-	createTableQuery := `
-	CREATE TABLE IF NOT EXISTS transactions (
-		id INT AUTO_INCREMENT PRIMARY KEY,
-		user_id INT NOT NULL,
-		sender_name VARCHAR(255) NOT NULL,
-		sender_address VARCHAR(255) NOT NULL,
-		transaction_type VARCHAR(100) NOT NULL,
-		status VARCHAR(50) NOT NULL,
-		package_type VARCHAR(100) NOT NULL,
-		amount DECIMAL(10,2) NOT NULL,
-		description TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);`
-
-	// Execute the query
-	_, err := db.Exec(createTableQuery)
-	if err != nil {
-		log.Fatalf("Error creating table: %v", err)
-	} else {
-		fmt.Println("Table checked/created successfully")
-	}
-}
+//// Transaction struct matches the table schema
+//type Transaction struct {
+//	UserID        uint      `json:"user_id"`
+//	SenderName    string    `json:"senderName"`
+//	SenderAddress string    `json:"senderAddress"`
+//	Type          string    `json:"transactionType"`
+//	Status        string    `json:"status"`
+//	PackageType   string    `json:"packageType"`
+//	Amount        float64   `json:"amount"`
+//	Description   string    `json:"description"`
+//	CreatedAt     time.Time `json:"created_at"`
+//}
+//
+//func createTableIfNotExists(db *sql.DB) {
+//	// SQL query to create the table based on the Transaction struct
+//	createTableQuery := `
+//	CREATE TABLE IF NOT EXISTS transactions (
+//		id INT AUTO_INCREMENT PRIMARY KEY,
+//		user_id INT NOT NULL,
+//		sender_name VARCHAR(255) NOT NULL,
+//		sender_address VARCHAR(255) NOT NULL,
+//		transaction_type VARCHAR(100) NOT NULL,
+//		status VARCHAR(50) NOT NULL,
+//		package_type VARCHAR(100) NOT NULL,
+//		amount DECIMAL(10,2) NOT NULL,
+//		description TEXT,
+//		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+//	);`
+//
+//	// Execute the query
+//	_, err := db.Exec(createTableQuery)
+//	if err != nil {
+//		log.Fatalf("Error creating table: %v", err)
+//	} else {
+//		fmt.Println("Table checked/created successfully")
+//	}
+//}
 
 func main() {
 
@@ -69,7 +68,7 @@ func main() {
 	defer db.Close()
 
 	// Check if the table exists and create it if necessary
-	createTableIfNotExists(db)
+	//createTableIfNotExists(db)
 
 	router := gin.Default()
 
