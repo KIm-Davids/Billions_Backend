@@ -436,15 +436,15 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	profitLog := models.Profit{
-		Email:  user.Email,
-		Amount: -withdrawal.Amount,
-		Source: "withdrawal", // or "daily profit withdrawal"
-	}
-	if err := initializers.DB.Create(&profitLog).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal in profits"})
-		return
-	}
+	//profitLog := models.Profit{
+	//	Email:  user.Email,
+	//	Amount: -withdrawal.Amount,
+	//	Source: "withdrawal", // or "daily profit withdrawal"
+	//}
+	//if err := initializers.DB.Create(&profitLog).Error; err != nil {
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal in profits"})
+	//	return
+	//}
 
 	// Commit the transaction
 	tx.Commit()
