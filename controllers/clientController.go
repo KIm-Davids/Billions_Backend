@@ -747,6 +747,11 @@ func GenerateDailyProfits(c *gin.Context) {
 
 		user.Balance += latestUpdatedProfit.Amount
 
+		if err := initializers.DB.Save(&user).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"message":    "Latest updated profit found",
 			"net_profit": latestUpdatedProfit.Amount,
