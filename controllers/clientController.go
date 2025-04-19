@@ -739,6 +739,14 @@ func GenerateDailyProfits(c *gin.Context) {
 			return
 		}
 
+		var user models.User
+		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+
+		user.Balance += latestUpdatedProfit.Amount
+
 		c.JSON(http.StatusOK, gin.H{
 			"message":    "Latest updated profit found",
 			"net_profit": latestUpdatedProfit.Amount,
