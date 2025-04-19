@@ -837,12 +837,13 @@ func GenerateDailyProfits(c *gin.Context) {
 			return
 		}
 
-		//if user.ProfitAddedStatus == "" {
-		//	//c.JSON(http.StatusConflict, gin.H{"error": "Profit already added to balance"})
-		//	//return
-		//	user.Balance += latestUpdatedProfit.Amount
-		//	user.ProfitAddedStatus = "true"
-		//}
+		if user.ProfitAddedStatus == "true" {
+			c.JSON(http.StatusAlreadyReported, gin.H{"error": "Profit already added to balance"})
+			return
+		}
+
+		user.Balance += latestUpdatedProfit.Amount
+		user.ProfitAddedStatus = "true"
 
 		if err := initializers.DB.Save(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
