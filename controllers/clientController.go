@@ -737,8 +737,9 @@ func GenerateDailyProfits(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"profits": []ProfitResponse{
 				{
-					Email:  existingProfit.Email,
-					Profit: existingProfit.Amount,
+					Email:     existingProfit.Email,
+					Profit:    existingProfit.Amount,
+					NetProfit: existingProfit,
 				},
 			},
 			"message": "Profit already generated for today",
