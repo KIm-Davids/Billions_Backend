@@ -847,16 +847,16 @@ func CalculateAndSaveNetProfit(c *gin.Context) {
 
 	var latestProfit models.Profit
 
-	if latestProfit.NetProfitStatus == "updatedProfit" {
-		c.JSON(http.StatusConflict, gin.H{"error": "Net profit has been minused"})
-	}
-
 	if err := initializers.DB.
 		Where("email = ? AND amount > 0", email).
 		Order("created_at DESC").
 		First(&latestProfit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No profit record found"})
 		return
+	}
+
+	if latestProfit.NetProfitStatus == "updatedProfit" {
+		c.JSON(http.StatusConflict, gin.H{"error": "Net profit has been minused"})
 	}
 
 	var latestWithdrawal models.Withdraw
