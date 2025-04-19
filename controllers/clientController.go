@@ -432,7 +432,6 @@ func WithdrawFromBalance(c *gin.Context) {
 }
 
 func RewardReferrer(c *gin.Context) {
-	// Step 1: Get email from request body
 	var req struct {
 		Email string `json:"email"`
 	}
@@ -442,14 +441,12 @@ func RewardReferrer(c *gin.Context) {
 		return
 	}
 
-	// Step 1: Get user by email
 	var user models.User
 	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	// Step 2: Fetch unprocessed referral bonuses for the user
 	var referralBonuses []models.ReferralBonus
 	if err := initializers.DB.
 		Where("referred_id = ? AND processed = ?", user.ReferID, "false").
@@ -458,44 +455,42 @@ func RewardReferrer(c *gin.Context) {
 		return
 	}
 
-	// ✅ Step 2.5: Check if it's 6 PM
 	currentTime := time.Now()
 	if currentTime.Hour() != 18 {
-		c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only processed at 6 PM"})
+		c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only displayed at 6 PM"})
 		return
 	}
 
-	// Step 3: Loop through each bonus and reward referrer if deposit confirmed
+	var displayBonuses []models.ReferralBonus
+
 	for _, bonus := range referralBonuses {
 		var deposit models.Deposit
 		if err := initializers.DB.
 			Where("email = ? AND status = ?", user.Email, "confirmed").
 			Order("created_at asc").
 			First(&deposit).Error; err != nil {
-			continue // skip if no confirmed deposit yet
+			continue
 		}
 
 		var referrer models.User
 		if err := initializers.DB.
 			Where("refer_id = ?", user.ReferredBy).
 			First(&referrer).Error; err != nil {
-			continue // skip if referrer not found
+			continue
 		}
 
-		// Credit the bonus to the referrer’s balance
-		referrer.Profit += bonus.Amount
-		if err := initializers.DB.Save(&referrer).Error; err != nil {
-			continue // skip if save failed
-		}
+		// Do NOT update referrer.Profit — just collect data to return
+		displayBonuses = append(displayBonuses, bonus)
 
-		// Mark bonus as processed
+		// Optional: mark as processed to avoid re-showing
 		bonus.Processed = "true"
 		initializers.DB.Save(&bonus)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":       "Referral bonuses processed successfully",
-		"referral_code": user.ReferredBy, // or user.ReferredBy depending on what you want to expose
+		"message":          "Referral bonuses fetched for display",
+		"referral_bonuses": displayBonuses,
+		"referrer":         user.ReferredBy,
 	})
 }
 
