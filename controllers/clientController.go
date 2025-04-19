@@ -732,7 +732,7 @@ func GenerateDailyProfits(c *gin.Context) {
 	if profitGeneratedToday {
 		var latestUpdatedProfit models.Profit
 		if err := initializers.DB.
-			Where("email = ? AND net_profit_status = ?", email, "updatedProfit").
+			Where("email = ? AND source = ?", email, "net profit calculation").
 			Order("created_at DESC").
 			First(&latestUpdatedProfit).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
