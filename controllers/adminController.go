@@ -411,10 +411,38 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
 		return
 	}
-	user.Profit -= withdrawal.Amount
+
+	var totalProfit float64
+	if err := initializers.DB.Model(&models.Profit{}).
+		Where("email = ?", user.Email).
+		Select("SUM(amount)").Scan(&totalProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user profit"})
+		return
+	}
+
+	if totalProfit < withdrawal.Amount {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
+		return
+	}
+
+	// Optional: Record new profit after withdrawal if needed
+	newProfit := totalProfit - withdrawal.Amount
+
+	user.Profit = newProfit
+
 	if err := tx.Save(&user).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+		return
+	}
+
+	profitLog := models.Profit{
+		Email:  user.Email,
+		Amount: -withdrawal.Amount,
+		Source: "withdrawal", // or "daily profit withdrawal"
+	}
+	if err := initializers.DB.Create(&profitLog).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal in profits"})
 		return
 	}
 
