@@ -431,6 +431,71 @@ func WithdrawFromBalance(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Main balance withdrawal logged", "withdrawal": tx})
 }
 
+//
+//func RewardReferrer(c *gin.Context) {
+//	var req struct {
+//		Email    string `json:"email"`
+//		Referrer string `json:"referrer"`
+//	}
+//
+//	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing email"})
+//		return
+//	}
+//
+//	var user models.User
+//	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+//		return
+//	}
+//
+//	var referralBonuses []models.ReferralBonus
+//	if err := initializers.DB.
+//		Where("referred_id = ? AND processed = ?", user.ReferID, "false").
+//		Find(&referralBonuses).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonuses"})
+//		return
+//	}
+//
+//	currentTime := time.Now()
+//	if currentTime.Hour() != 18 {
+//		c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only displayed at 6 PM"})
+//		return
+//	}
+//
+//	var displayBonuses []models.ReferralBonus
+//
+//	for _, bonus := range referralBonuses {
+//		var deposit models.Deposit
+//		if err := initializers.DB.
+//			Where("email = ? AND status = ?", user.Email, "confirmed").
+//			Order("created_at asc").
+//			First(&deposit).Error; err != nil {
+//			continue
+//		}
+//
+//		var referrer models.User
+//		if err := initializers.DB.
+//			Where("refer_id = ?", user.ReferredBy).
+//			First(&referrer).Error; err != nil {
+//			continue
+//		}
+//
+//		// Do NOT update referrer.Profit — just collect data to return
+//		displayBonuses = append(displayBonuses, bonus)
+//
+//		// Optional: mark as processed to avoid re-showing
+//		bonus.Processed = "true"
+//		initializers.DB.Save(&bonus)
+//	}
+//
+//	c.JSON(http.StatusOK, gin.H{
+//		"message":          "Referral bonuses fetched for display",
+//		"referral_bonuses": displayBonuses,
+//		"referrer":         user.ReferredBy,
+//	})
+//}
+
 func RewardReferrer(c *gin.Context) {
 	var req struct {
 		Email string `json:"email"`
@@ -447,50 +512,77 @@ func RewardReferrer(c *gin.Context) {
 		return
 	}
 
-	var referralBonuses []models.ReferralBonus
-	if err := initializers.DB.
-		Where("referred_id = ? AND processed = ?", user.ReferID, "false").
-		Find(&referralBonuses).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonuses"})
-		return
-	}
-
 	currentTime := time.Now()
 	if currentTime.Hour() != 18 {
-		c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only displayed at 6 PM"})
+		c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only processed at 6 PM"})
 		return
 	}
 
-	var displayBonuses []models.ReferralBonus
+	// Check if bonus already processed
+	var existingBonus models.ReferralBonus
+	if err := initializers.DB.
+		Where("referred_id = ? AND referrer_id = ? AND processed = ?", user.ReferID, user.ReferredBy, "true").
+		First(&existingBonus).Error; err == nil {
+		c.JSON(http.StatusOK, gin.H{"message": "Referral bonus already processed"})
+		return
+	}
 
-	for _, bonus := range referralBonuses {
-		var deposit models.Deposit
-		if err := initializers.DB.
-			Where("email = ? AND status = ?", user.Email, "confirmed").
-			Order("created_at asc").
-			First(&deposit).Error; err != nil {
-			continue
-		}
+	// Get the latest confirmed deposit by the referred user
+	var deposit models.Deposit
+	if err := initializers.DB.
+		Where("email = ? AND status = ?", user.Email, "confirmed").
+		Order("created_at DESC").
+		First(&deposit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposit found"})
+		return
+	}
 
-		var referrer models.User
-		if err := initializers.DB.
-			Where("refer_id = ?", user.ReferredBy).
-			First(&referrer).Error; err != nil {
-			continue
-		}
+	// Find the referrer
+	var referrer models.User
+	if err := initializers.DB.
+		Where("refer_id = ?", user.ReferredBy).
+		First(&referrer).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+		return
+	}
 
-		// Do NOT update referrer.Profit — just collect data to return
-		displayBonuses = append(displayBonuses, bonus)
+	// Calculate 5% referral bonus
+	bonusAmount := 0.05 * deposit.Amount
 
-		// Optional: mark as processed to avoid re-showing
-		bonus.Processed = "true"
-		initializers.DB.Save(&bonus)
+	// Save to referral bonus table
+	newBonus := models.ReferralBonus{
+		Email:      referrer.Email,
+		ReferrerID: user.ReferredBy,
+		ReferredID: user.ReferID,
+		Amount:     bonusAmount,
+		RewardedAt: time.Now(),
+		Processed:  "true",
+	}
+
+	if err := initializers.DB.Create(&newBonus).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save referral bonus"})
+		return
+	}
+
+	// ✅ Optionally: add to referrer’s profit table with tag
+	newProfit := models.Profit{
+		Email:           referrer.Email,
+		Amount:          bonusAmount,
+		Source:          "referrer bonus",
+		Date:            time.Now(),
+		CreatedAt:       time.Now(),
+		NetProfitStatus: "referrer bonus",
+	}
+
+	if err := initializers.DB.Create(&newProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profit record"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":          "Referral bonuses fetched for display",
-		"referral_bonuses": displayBonuses,
-		"referrer":         user.ReferredBy,
+		"message":        "Referral bonus processed successfully",
+		"referrer_email": referrer.Email,
+		"bonus_amount":   bonusAmount,
 	})
 }
 
