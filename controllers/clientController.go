@@ -654,20 +654,14 @@ func GenerateDailyProfits(c *gin.Context) {
 	currentTime := time.Now().In(location)
 
 	// ✅ Check for existing profit for today
+	var profitGeneratedToday bool
 	var existingProfit models.Profit
-	if err := initializers.DB.
+	err := initializers.DB.
 		Where("email = ? AND DATE(date) = ?", email, currentTime.Format("2006-01-02")).
-		First(&existingProfit).Error; err == nil {
-		c.JSON(http.StatusOK, gin.H{
-			"profits": []ProfitResponse{
-				{
-					Email:  existingProfit.Email,
-					Profit: existingProfit.Amount,
-				},
-			},
-			"message": "Profit already generated for today",
-		})
-		return
+		First(&existingProfit).Error
+
+	if err == nil {
+		profitGeneratedToday = true // Mark that profit already exists for today
 	}
 
 	// ✅ Get user's latest deposit
@@ -720,7 +714,7 @@ func GenerateDailyProfits(c *gin.Context) {
 		18, 0, 0, 0, location,
 	)
 
-	message := "Profit calculated and returned. Will be added to balance at 6PM."
+	//message = "Profit calculated and returned. Will be added to balance at 6PM."
 	if currentTime.After(sixPM) {
 		var user models.User
 		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
@@ -736,22 +730,25 @@ func GenerateDailyProfits(c *gin.Context) {
 			return
 		}
 
-		message = "Profit calculated and added to balance (after 6PM)."
+		//message = "Profit calculated and added to balance (after 6PM)."
 	}
 
 	var netProfit models.Profit
 
-	// ✅ Return profit response
-	c.JSON(http.StatusOK, gin.H{
-		"profits": []ProfitResponse{
-			{
-				Email:     email,
-				Profit:    profitAmount,
-				NetProfit: netProfit,
+	if profitGeneratedToday {
+		c.JSON(http.StatusOK, gin.H{
+			"profits": []ProfitResponse{
+				{
+					Email:     existingProfit.Email,
+					Profit:    existingProfit.Amount,
+					NetProfit: netProfit,
+				},
 			},
-		},
-		"message": message,
-	})
+			"message": "Profit already generated for today",
+		})
+		return
+	}
+
 }
 
 func GetReferralCode(c *gin.Context) {
