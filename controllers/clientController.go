@@ -534,13 +534,13 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 
 	// ✅ Prevent duplicate profit for today
-	var existingProfit models.Profit
-	if err := initializers.DB.
-		Where("email = ? AND DATE(date) = ?", email, currentTime.Format("2006-01-02")).
-		First(&existingProfit).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{"message": "Profit already generated for today"})
-		return
-	}
+	//var existingProfit models.Profit
+	//if err := initializers.DB.
+	//	Where("email = ? AND DATE(date) = ?", email, currentTime.Format("2006-01-02")).
+	//	First(&existingProfit).Error; err == nil {
+	//	c.JSON(http.StatusConflict, gin.H{"message": "Profit already generated for today"})
+	//	return
+	//}
 
 	daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
 
