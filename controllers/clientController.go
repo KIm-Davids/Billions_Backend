@@ -697,11 +697,12 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	// ✅ Save the profit record
 	newProfit := models.Profit{
-		Email:     deposit.Email,
-		Amount:    profitAmount,
-		Source:    "daily profit",
-		CreatedAt: currentTime,
-		Date:      currentTime,
+		Email:           deposit.Email,
+		Amount:          profitAmount,
+		Source:          "daily profit",
+		CreatedAt:       currentTime,
+		Date:            currentTime,
+		NetProfitStatus: "updatedProfit",
 	}
 	if err := initializers.DB.Create(&newProfit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
@@ -734,17 +735,20 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 
 	if profitGeneratedToday {
+		var latestUpdatedProfit models.Profit
+		if err := initializers.DB.
+			Where("email = ? AND net_profit_status = ?", email, "updatedProfit").
+			Order("created_at DESC").
+			First(&latestUpdatedProfit).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
-			"profits": []ProfitResponse{
-				{
-					Email:     existingProfit.Email,
-					Profit:    existingProfit.Amount,
-					NetProfit: existingProfit,
-				},
-			},
-			"message": "Profit already generated for today",
+			"message":    "Latest updated profit found",
+			"net_profit": latestUpdatedProfit.Amount,
+			"entry":      latestUpdatedProfit,
 		})
-		return
 	}
 
 }
