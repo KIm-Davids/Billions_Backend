@@ -326,10 +326,10 @@ func WithdrawFromProfits(c *gin.Context) {
 			return
 		}
 
-		if input.Status == "confirmed" {
-			user.Profit -= input.Amount
-			user.Package = deposit.PackageType
-		}
+		//if input.Status == "confirmed" {
+		user.Profit -= input.Amount
+		user.Package = deposit.PackageType
+		//}
 
 		if err := initializers.DB.Save(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
@@ -476,7 +476,7 @@ func RewardReferrer(c *gin.Context) {
 		}
 
 		// Credit the bonus to the referrer’s balance
-		referrer.Balance += bonus.Amount
+		referrer.Profit += bonus.Amount
 		if err := initializers.DB.Save(&referrer).Error; err != nil {
 			continue // skip if save failed
 		}
