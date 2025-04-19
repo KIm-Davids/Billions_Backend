@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func RegisterAdmin(c *gin.Context) {
@@ -367,6 +368,91 @@ func GetAllWithdrawals(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"withdrawals": withdrawals})
 }
 
+//func ConfirmWithdrawProfit(c *gin.Context) {
+//	type ConfirmRequest struct {
+//		Email      string `json:"email"`
+//		WithdrawId uint   `json:"withdrawId"`
+//	}
+//
+//	var req ConfirmRequest
+//	if err := c.ShouldBindJSON(&req); err != nil {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+//		return
+//	}
+//
+//	// Find the user
+//	var user models.User
+//	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+//		return
+//	}
+//
+//	// Find the withdrawal record using DepositID, email, and status = "pending"
+//	var withdrawal models.Withdraw
+//	if err := initializers.DB.Where("email = ? AND status = ? AND withdraw_id = ?", req.Email, "pending", req.WithdrawId).
+//		First(&withdrawal).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "Withdrawal not found or already confirmed"})
+//		return
+//	}
+//
+//	// Start a transaction
+//	tx := initializers.DB.Begin()
+//
+//	// Update withdrawal status to completed
+//	withdrawal.Status = "completed"
+//	if err := tx.Save(&withdrawal).Error; err != nil {
+//		tx.Rollback()
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update withdrawal status"})
+//		return
+//	}
+//
+//	// Deduct from user's profit (or balance if that's what you're using)
+//	if user.Balance < withdrawal.Amount {
+//		tx.Rollback()
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
+//		return
+//	}
+//
+//	var totalProfit float64
+//	if err := initializers.DB.Model(&models.Profit{}).
+//		Where("email = ?", user.Email).
+//		Select("SUM(amount)").Scan(&totalProfit).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user profit"})
+//		return
+//	}
+//
+//	if totalProfit < withdrawal.Amount {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
+//		return
+//	}
+//
+//	// Optional: Record new profit after withdrawal if needed
+//	newProfit := totalProfit - withdrawal.Amount
+//
+//	user.Profit = newProfit
+//
+//	if err := tx.Save(&user).Error; err != nil {
+//		tx.Rollback()
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+//		return
+//	}
+//
+//	//profitLog := models.Profit{
+//	//	Email:  user.Email,
+//	//	Amount: -withdrawal.Amount,
+//	//	Source: "withdrawal", // or "daily profit withdrawal"
+//	//}
+//	//if err := initializers.DB.Create(&profitLog).Error; err != nil {
+//	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal in profits"})
+//	//	return
+//	//}
+//
+//	// Commit the transaction
+//	tx.Commit()
+//
+//	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal confirmed and balance updated"})
+//}
+
 func ConfirmWithdrawProfit(c *gin.Context) {
 	type ConfirmRequest struct {
 		Email      string `json:"email"`
@@ -379,25 +465,26 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	// Find the user
+	// Fetch user (optional if you just want to validate the email exists)
 	var user models.User
 	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	// Find the withdrawal record using DepositID, email, and status = "pending"
+	// Fetch the pending withdrawal
 	var withdrawal models.Withdraw
-	if err := initializers.DB.Where("email = ? AND status = ? AND withdraw_id = ?", req.Email, "pending", req.WithdrawId).
+	if err := initializers.DB.
+		Where("email = ? AND status = ? AND withdraw_id = ?", req.Email, "pending", req.WithdrawId).
 		First(&withdrawal).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Withdrawal not found or already confirmed"})
 		return
 	}
 
-	// Start a transaction
+	// Start DB transaction
 	tx := initializers.DB.Begin()
 
-	// Update withdrawal status to completed
+	// Update withdrawal to completed
 	withdrawal.Status = "completed"
 	if err := tx.Save(&withdrawal).Error; err != nil {
 		tx.Rollback()
@@ -405,51 +492,41 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	// Deduct from user's profit (or balance if that's what you're using)
-	if user.Balance < withdrawal.Amount {
-		tx.Rollback()
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
-		return
-	}
-
+	// Calculate total profit
 	var totalProfit float64
-	if err := initializers.DB.Model(&models.Profit{}).
-		Where("email = ?", user.Email).
+	if err := tx.Model(&models.Profit{}).
+		Where("email = ?", req.Email).
 		Select("SUM(amount)").Scan(&totalProfit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user profit"})
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch total profit"})
 		return
 	}
 
 	if totalProfit < withdrawal.Amount {
+		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
 		return
 	}
 
-	// Optional: Record new profit after withdrawal if needed
-	newProfit := totalProfit - withdrawal.Amount
-
-	user.Profit = newProfit
-
-	if err := tx.Save(&user).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
-		return
+	// Add negative profit entry to deduct withdrawn amount
+	deduction := models.Profit{
+		Email:     req.Email,
+		Amount:    -withdrawal.Amount,
+		Source:    "withdrawal",
+		CreatedAt: time.Now(),
+		Date:      time.Now(),
 	}
 
-	//profitLog := models.Profit{
-	//	Email:  user.Email,
-	//	Amount: -withdrawal.Amount,
-	//	Source: "withdrawal", // or "daily profit withdrawal"
-	//}
-	//if err := initializers.DB.Create(&profitLog).Error; err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal in profits"})
-	//	return
-	//}
+	if err := tx.Create(&deduction).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal deduction"})
+		return
+	}
 
 	// Commit the transaction
 	tx.Commit()
 
-	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal confirmed and balance updated"})
+	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal confirmed and deducted from profits"})
 }
 
 func RejectWithdraw(c *gin.Context) {
