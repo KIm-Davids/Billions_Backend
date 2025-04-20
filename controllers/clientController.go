@@ -572,7 +572,7 @@ func RewardReferrer(c *gin.Context) {
 		Source:          "referrer bonus",
 		Date:            time.Now(),
 		CreatedAt:       time.Now(),
-		NetProfitStatus: "referrer bonus",
+		NetProfitStatus: "processed",
 	}
 
 	if err := initializers.DB.Create(&newProfit).Error; err != nil {
