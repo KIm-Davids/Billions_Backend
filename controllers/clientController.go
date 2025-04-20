@@ -580,6 +580,12 @@ func RewardReferrer(c *gin.Context) {
 		return
 	}
 
+	if newProfit.Email == req.Email {
+		c.JSON(http.StatusOK, gin.H{
+			"bonus_amount": bonusAmount,
+		})
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message":      "Referral bonus processed successfully",
 		"referrer_id":  req.Referrer,
