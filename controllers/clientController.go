@@ -455,15 +455,29 @@ func GetReferrerBonusDetails(c *gin.Context) {
 		return
 	}
 
+	// Fetch all referral bonus records for the referrer with processed = "true"
+	err = initializers.DB.
+		Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
+		Find(&bonuses).Error // You can adjust the condition for transaction_processed as needed
+
 	// Sum all the processed referral bonus records for the referrer
 	err = initializers.DB.
 		Model(&models.ReferralBonus{}).
-		Where("referrer_id = ? AND processed = ?", req.ReferrerId, "true").
+		Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
 		Select("COALESCE(SUM(amount), 0)").
 		Scan(&totalBonus).Error
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate referral bonus"})
+		return
+	}
+
+	err = initializers.DB.Model(&models.ReferralBonus{}).
+		Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
+		Update("transaction_processed", true).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update transaction_processed"})
 		return
 	}
 
