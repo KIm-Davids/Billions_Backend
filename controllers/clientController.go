@@ -463,7 +463,7 @@ func GetReferrerBonusDetails(c *gin.Context) {
 	// Sum all the processed referral bonus records for the referrer
 	err = initializers.DB.
 		Model(&models.ReferralBonus{}).
-		Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
+		Where("referrer_id = ? AND processed = ?", req.ReferrerId, "true").
 		Select("COALESCE(SUM(amount), 0)").
 		Scan(&totalBonus).Error
 
