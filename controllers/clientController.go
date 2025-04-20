@@ -566,7 +566,7 @@ func RewardReferrer(c *gin.Context) {
 
 	// ✅ Optionally: add to referrer’s profit table with tag
 	newProfit := models.Profit{
-		Email:           user.Email,
+		Email:           referrer.Email,
 		Amount:          bonusAmount,
 		Source:          "referrer bonus",
 		Date:            time.Now(),
