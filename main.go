@@ -113,7 +113,7 @@ func main() {
 	router.POST("/getReferCount", controllers.CountUserReferrals)
 	router.POST("/getReferrerCode", controllers.GetReferralCode)
 	router.POST("/getNetProfit", controllers.CalculateAndSaveNetProfit)
-	router.GET("/getReferBonus", controllers.GetReferrerBonusDetails)
+	router.POST("/getReferBonus", controllers.GetReferrerBonusDetails)
 
 	port := os.Getenv("PORT")
 	if port == "" {
