@@ -431,6 +431,34 @@ func WithdrawFromBalance(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Main balance withdrawal logged", "withdrawal": tx})
 }
 
+func GetReferrerBonusDetails(c *gin.Context) {
+	var req struct {
+		ReferrerId string `json:"referrerId"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil || req.ReferrerId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Referrer ID is required"})
+		return
+	}
+
+	var bonuses []models.ReferralBonus
+
+	// Fetch all referral bonus records for the referrer
+	err := initializers.DB.
+		Where("referrer_id = ?", req.ReferrerId).
+		Find(&bonuses).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonus details"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"referrer_id": req.ReferrerId,
+		"bonuses":     bonuses,
+	})
+}
+
 //
 //func RewardReferrer(c *gin.Context) {
 //	var req struct {
