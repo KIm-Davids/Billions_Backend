@@ -498,7 +498,8 @@ func WithdrawFromBalance(c *gin.Context) {
 
 func RewardReferrer(c *gin.Context) {
 	var req struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Referrer string `json:"referrerId"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" {
@@ -521,7 +522,7 @@ func RewardReferrer(c *gin.Context) {
 	// Check if bonus already processed
 	var existingBonus models.ReferralBonus
 	if err := initializers.DB.
-		Where("referred_id = ? AND referrer_id = ? AND processed = ?", user.ReferID, user.ReferredBy, "true").
+		Where("referred_id = ? AND referrer_id = ? AND processed = ?", user.ReferID, req.Referrer, "true").
 		First(&existingBonus).Error; err == nil {
 		c.JSON(http.StatusOK, gin.H{"message": "Referral bonus already processed"})
 		return
@@ -540,7 +541,7 @@ func RewardReferrer(c *gin.Context) {
 	// Find the referrer
 	var referrer models.User
 	if err := initializers.DB.
-		Where("refer_id = ?", user.ReferredBy).
+		Where("referred_by = ?", req.Referrer).
 		First(&referrer).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
 		return
@@ -552,7 +553,7 @@ func RewardReferrer(c *gin.Context) {
 	// Save to referral bonus table
 	newBonus := models.ReferralBonus{
 		Email:      user.Email,
-		ReferrerID: user.ReferredBy,
+		ReferrerID: req.Referrer,
 		ReferredID: user.ReferID,
 		Amount:     bonusAmount,
 		RewardedAt: time.Now(),
@@ -580,9 +581,9 @@ func RewardReferrer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":        "Referral bonus processed successfully",
-		"referrer_email": user.ReferredBy,
-		"bonus_amount":   bonusAmount,
+		"message":      "Referral bonus processed successfully",
+		"referrer_id":  req.Referrer,
+		"bonus_amount": bonusAmount,
 	})
 }
 
