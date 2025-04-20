@@ -593,73 +593,37 @@ func RewardReferrer(c *gin.Context) {
 	})
 }
 
-func GetReferralBonus(c *gin.Context) {
-	referrerId := c.Query("referrerId")
-
-	if referrerId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Referrer ID is required"})
-		return
-	}
-
-	// Step 1: Fetch unprocessed referral bonuses
-	var unprocessedBonuses []models.ReferralBonus
-	if err := initializers.DB.
-		Where("referrer_id = ? AND processed = ?", referrerId, "false").
-		Find(&unprocessedBonuses).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonuses"})
-		return
-	}
-
-	// Step 2: Calculate total bonus
-	var total float64
-	for _, bonus := range unprocessedBonuses {
-		total += bonus.Amount
-	}
-
-	// Step 3: Save total to profits table
-	if total > 0 {
-		newProfit := models.Profit{
-			Email:           referrerId,
-			Amount:          total,
-			Source:          "referrer bonus",
-			NetProfitStatus: "pending",
-			Date:            time.Now(),
-			CreatedAt:       time.Now(),
-		}
-		if err := initializers.DB.Create(&newProfit).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profit"})
-			return
-		}
-
-		// Step 4: Mark bonuses as processed
-		if err := initializers.DB.
-			Model(&models.ReferralBonus{}).
-			Where("referrer_id = ? AND processed = ?", referrerId, "false").
-			Update("processed", "true").Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark bonuses as processed"})
-			return
-		}
-	}
-
-	// Step 5: Fetch referrer's referral code (from User table)
-	var referrer models.User
-	if err := initializers.DB.Where("email = ?", referrerId).First(&referrer).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"total_bonus":   total,
-			"bonuses":       unprocessedBonuses,
-			"referral_code": nil,
-			"note":          "Referrer's referral code not found.",
-		})
-		return
-	}
-
-	// Step 6: Return everything
-	//c.JSON(http.StatusOK, gin.H{
-	//	"total_bonus":   total,
-	//	"bonuses":       unprocessedBonuses,
-	//	"referral_code": referrer.ReferredBy,
-	//})
-}
+//func GetReferrerBonusTotal(c *gin.Context) {
+//	var req struct {
+//		ReferrerId string `json:"referrerId"`
+//	}
+//
+//	if err := c.ShouldBindJSON(&req); err != nil || req.ReferrerId == "" {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Referrer ID is required"})
+//		return
+//	}
+//
+//	var totalBonus float64
+//
+//	// Sum only processed bonuses for the referrer
+//	err := initializers.DB.
+//		Model(&models.ReferralBonus{}).
+//		Where("referrer_id = ? AND processed = ?", req.ReferrerId, "true").
+//		Select("COALESCE(SUM(amount), 0)").
+//		Scan(&totalBonus).Error
+//
+//	if err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate referral bonus"})
+//		return
+//	}
+//
+//	if req.ReferrerId != tota
+//
+//	c.JSON(http.StatusOK, gin.H{
+//		"referrer_id": req.ReferrerId,
+//		"total_bonus": totalBonus,
+//	})
+//}
 
 var profitRates = map[string]float64{
 	"test":    0.008,
