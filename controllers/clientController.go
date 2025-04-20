@@ -443,13 +443,17 @@ func GetReferrerBonusDetails(c *gin.Context) {
 
 	var bonuses []models.ReferralBonus
 
-	// Fetch all referral bonus records for the referrer
+	var totalBonus float64
+
+	// Fetch and sum all processed referral bonus records for the referrer
 	err := initializers.DB.
-		Where("referrer_id = ?", req.ReferrerId).
-		Find(&bonuses).Error
+		Model(&models.ReferralBonus{}).
+		Where("referrer_id = ? AND processed = ?", req.ReferrerId, "true").
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&totalBonus).Error
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonus details"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate referral bonus"})
 		return
 	}
 
