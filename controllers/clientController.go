@@ -587,29 +587,70 @@ func RewardReferrer(c *gin.Context) {
 }
 
 func GetReferralBonus(c *gin.Context) {
-	email := c.Query("email")
-	if email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+	referrerId := c.Query("referrerId")
+
+	if referrerId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Referrer ID is required"})
 		return
 	}
 
-	var bonuses []models.Profit
+	// Step 1: Fetch unprocessed referral bonuses
+	var unprocessedBonuses []models.ReferralBonus
 	if err := initializers.DB.
-		Where("email = ? AND source = ?", email, "referrer bonus").
-		Find(&bonuses).Error; err != nil {
+		Where("referrer_id = ? AND processed = ?", referrerId, "false").
+		Find(&unprocessedBonuses).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonuses"})
 		return
 	}
 
-	// Optional: calculate total bonus amount
+	// Step 2: Calculate total bonus
 	var total float64
-	for _, bonus := range bonuses {
+	for _, bonus := range unprocessedBonuses {
 		total += bonus.Amount
 	}
 
+	// Step 3: Save total to profits table
+	if total > 0 {
+		newProfit := models.Profit{
+			Email:           referrerId,
+			Amount:          total,
+			Source:          "referrer bonus",
+			NetProfitStatus: "pending",
+			Date:            time.Now(),
+			CreatedAt:       time.Now(),
+		}
+		if err := initializers.DB.Create(&newProfit).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profit"})
+			return
+		}
+
+		// Step 4: Mark bonuses as processed
+		if err := initializers.DB.
+			Model(&models.ReferralBonus{}).
+			Where("referrer_id = ? AND processed = ?", referrerId, "false").
+			Update("processed", "true").Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark bonuses as processed"})
+			return
+		}
+	}
+
+	// Step 5: Fetch referrer's referral code (from User table)
+	var referrer models.User
+	if err := initializers.DB.Where("email = ?", referrerId).First(&referrer).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"total_bonus":   total,
+			"bonuses":       unprocessedBonuses,
+			"referral_code": nil,
+			"note":          "Referrer's referral code not found.",
+		})
+		return
+	}
+
+	// Step 6: Return everything
 	c.JSON(http.StatusOK, gin.H{
-		"total_bonus": total,
-		"bonuses":     bonuses,
+		"total_bonus":   total,
+		"bonuses":       unprocessedBonuses,
+		"referral_code": referrer.ReferredBy,
 	})
 }
 
