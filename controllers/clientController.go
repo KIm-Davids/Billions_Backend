@@ -551,7 +551,7 @@ func RewardReferrer(c *gin.Context) {
 
 	// Save to referral bonus table
 	newBonus := models.ReferralBonus{
-		Email:      referrer.Email,
+		Email:      user.Email,
 		ReferrerID: user.ReferredBy,
 		ReferredID: user.ReferID,
 		Amount:     bonusAmount,
@@ -566,7 +566,7 @@ func RewardReferrer(c *gin.Context) {
 
 	// ✅ Optionally: add to referrer’s profit table with tag
 	newProfit := models.Profit{
-		Email:           referrer.Email,
+		Email:           user.Email,
 		Amount:          bonusAmount,
 		Source:          "referrer bonus",
 		Date:            time.Now(),
@@ -581,7 +581,7 @@ func RewardReferrer(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":        "Referral bonus processed successfully",
-		"referrer_email": referrer.Email,
+		"referrer_email": user.Email,
 		"bonus_amount":   bonusAmount,
 	})
 }
