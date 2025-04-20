@@ -436,17 +436,27 @@ func GetReferrerBonusDetails(c *gin.Context) {
 		ReferrerId string `json:"referrerId"`
 	}
 
+	// Bind the request JSON and check for the required 'ReferrerId'
 	if err := c.ShouldBindJSON(&req); err != nil || req.ReferrerId == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Referrer ID is required"})
 		return
 	}
 
 	var bonuses []models.ReferralBonus
-
 	var totalBonus float64
 
-	// Fetch and sum all processed referral bonus records for the referrer
+	// Fetch all referral bonus records for the referrer with processed = "true"
 	err := initializers.DB.
+		Where("referrer_id = ? AND processed = ?", req.ReferrerId, "true").
+		Find(&bonuses).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonus details"})
+		return
+	}
+
+	// Sum all the processed referral bonus records for the referrer
+	err = initializers.DB.
 		Model(&models.ReferralBonus{}).
 		Where("referrer_id = ? AND processed = ?", req.ReferrerId, "true").
 		Select("COALESCE(SUM(amount), 0)").
@@ -457,9 +467,11 @@ func GetReferrerBonusDetails(c *gin.Context) {
 		return
 	}
 
+	// Return the bonus details along with the total bonus
 	c.JSON(http.StatusOK, gin.H{
 		"referrer_id": req.ReferrerId,
 		"bonuses":     bonuses,
+		"total_bonus": totalBonus,
 	})
 }
 
