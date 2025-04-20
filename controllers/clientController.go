@@ -525,7 +525,6 @@ func RewardReferrer(c *gin.Context) {
 		Where("referred_id = ? AND referrer_id = ? AND processed = ?", user.ReferID, req.Referrer, "true").
 		First(&existingBonus).Error; err == nil {
 		c.JSON(http.StatusOK, gin.H{"message": "Referral bonus already processed"})
-		return
 	}
 
 	// Get the latest confirmed deposit by the referred user
@@ -535,7 +534,6 @@ func RewardReferrer(c *gin.Context) {
 		Order("created_at DESC").
 		First(&deposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposit found"})
-		return
 	}
 
 	// Find the referrer
@@ -544,7 +542,6 @@ func RewardReferrer(c *gin.Context) {
 		Where("referred_by = ?", req.Referrer).
 		First(&referrer).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
-		return
 	}
 
 	// Calculate 5% referral bonus
