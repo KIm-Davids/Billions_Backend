@@ -587,9 +587,9 @@ func RewardReferrer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":      "Referral bonus processed successfully",
-		"referrer_id":  req.Referrer,
-		"bonus_amount": bonusAmount,
+		"message":     "Referral bonus processed successfully",
+		"referrer_id": req.Referrer,
+		//"bonus_amount": bonusAmount,
 	})
 }
 
@@ -654,11 +654,11 @@ func GetReferralBonus(c *gin.Context) {
 	}
 
 	// Step 6: Return everything
-	c.JSON(http.StatusOK, gin.H{
-		"total_bonus":   total,
-		"bonuses":       unprocessedBonuses,
-		"referral_code": referrer.ReferredBy,
-	})
+	//c.JSON(http.StatusOK, gin.H{
+	//	"total_bonus":   total,
+	//	"bonuses":       unprocessedBonuses,
+	//	"referral_code": referrer.ReferredBy,
+	//})
 }
 
 var profitRates = map[string]float64{
