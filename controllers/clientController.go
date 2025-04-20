@@ -586,6 +586,33 @@ func RewardReferrer(c *gin.Context) {
 	})
 }
 
+func GetReferralBonus(c *gin.Context) {
+	email := c.Query("email")
+	if email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	var bonuses []models.Profit
+	if err := initializers.DB.
+		Where("email = ? AND source = ?", email, "referrer bonus").
+		Find(&bonuses).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonuses"})
+		return
+	}
+
+	// Optional: calculate total bonus amount
+	var total float64
+	for _, bonus := range bonuses {
+		total += bonus.Amount
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"total_bonus": total,
+		"bonuses":     bonuses,
+	})
+}
+
 var profitRates = map[string]float64{
 	"test":    0.008,
 	"pro":     0.01,
@@ -828,7 +855,6 @@ func GenerateDailyProfits(c *gin.Context) {
 			Order("created_at DESC").
 			First(&latestUpdatedProfit).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
-			return
 		}
 
 		var user models.User
@@ -856,7 +882,6 @@ func GenerateDailyProfits(c *gin.Context) {
 		Order("created_at DESC").
 		First(&latestUpdatedProfit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
-		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
