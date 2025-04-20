@@ -445,9 +445,9 @@ func GetReferrerBonusDetails(c *gin.Context) {
 	var bonuses []models.ReferralBonus
 	var totalBonus float64
 
-	// Fetch all referral bonus records for the referrer with processed = "true"
+	// Fetch all referral bonus records for the referrer where processed = "true" and transaction_processed = "false"
 	err := initializers.DB.
-		Where("referrer_id = ? AND processed = ?", req.ReferrerId, "true").
+		Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
 		Find(&bonuses).Error
 
 	if err != nil {
@@ -455,79 +455,38 @@ func GetReferrerBonusDetails(c *gin.Context) {
 		return
 	}
 
-	// Fetch all referral bonus records for the referrer with processed = "true"
-	err = initializers.DB.
-		Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
-		Find(&bonuses).Error // You can adjust the condition for transaction_processed as needed
-
-	// Sum all the processed referral bonus records for the referrer
-	err = initializers.DB.
-		Model(&models.ReferralBonus{}).
-		Where("referrer_id = ? AND processed = ?", req.ReferrerId, "true").
-		Select("COALESCE(SUM(amount), 0)").
-		Scan(&totalBonus).Error
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate referral bonus"})
-		return
-	}
-	func GetReferrerBonusDetails(c *gin.Context) {
-		var req struct {
-			ReferrerId string `json:"referrerId"`
-		}
-
-		// Bind the request JSON and check for the required 'ReferrerId'
-		if err := c.ShouldBindJSON(&req); err != nil || req.ReferrerId == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Referrer ID is required"})
-			return
-		}
-
-		var bonuses []models.ReferralBonus
-		var totalBonus float64
-
-		// Fetch all referral bonus records for the referrer where processed = "true" and transaction_processed = "false"
-		err := initializers.DB.
+	// Check if there are any bonuses to process
+	if len(bonuses) > 0 {
+		// Sum all the processed referral bonus records for the referrer that have transaction_processed = false
+		err = initializers.DB.
+			Model(&models.ReferralBonus{}).
 			Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
-			Find(&bonuses).Error
+			Select("COALESCE(SUM(amount), 0)").
+			Scan(&totalBonus).Error
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch referral bonus details"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate referral bonus"})
 			return
 		}
 
-		// Check if there are any bonuses to process
-		if len(bonuses) > 0 {
-			// Sum all the processed referral bonus records for the referrer that have transaction_processed = false
-			err = initializers.DB.
-				Model(&models.ReferralBonus{}).
-				Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
-				Select("COALESCE(SUM(amount), 0)").
-				Scan(&totalBonus).Error
+		// After successfully calculating the bonus, mark the bonuses as processed
+		err = initializers.DB.Model(&models.ReferralBonus{}).
+			Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
+			Update("transaction_processed", true).Error
 
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate referral bonus"})
-				return
-			}
-
-			// After successfully calculating the bonus, mark the bonuses as processed
-			err = initializers.DB.Model(&models.ReferralBonus{}).
-				Where("referrer_id = ? AND processed = ? AND transaction_processed = ?", req.ReferrerId, "true", false).
-				Update("transaction_processed", true).Error
-
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update transaction_processed"})
-				return
-			}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update transaction_processed"})
+			return
 		}
-
-		// Return the bonus details along with the total bonus
-		c.JSON(http.StatusOK, gin.H{
-			"referrer_id": req.ReferrerId,
-			"bonuses":     bonuses,
-			"total_bonus": totalBonus,
-		})
 	}
 
+	// Return the bonus details along with the total bonus
+	c.JSON(http.StatusOK, gin.H{
+		"referrer_id": req.ReferrerId,
+		"bonuses":     bonuses,
+		"total_bonus": totalBonus,
+	})
+}
 
 //
 //func RewardReferrer(c *gin.Context) {
