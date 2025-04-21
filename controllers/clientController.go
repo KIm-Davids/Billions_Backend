@@ -918,14 +918,6 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	if profitGeneratedToday {
 
-		if err := initializers.DB.
-			Where("email = ? ", email).
-			Order("created_at DESC").
-			First(&latestUpdatedProfit).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
-		}
-
 		if latestUpdatedProfit.Source == "net profit calculation" {
 			if err := initializers.DB.
 				Where("email = ? AND source = ?", email, "net profit calculation").
@@ -983,12 +975,12 @@ func GenerateDailyProfits(c *gin.Context) {
 			}
 		}
 	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Latest updated profit found",
 		"net_profit": latestUpdatedProfit.Amount,
 		"entry":      latestUpdatedProfit,
 	})
-
 }
 
 func GetReferralCode(c *gin.Context) {
