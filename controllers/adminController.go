@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 )
 
 func RegisterAdmin(c *gin.Context) {
@@ -508,48 +507,48 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	netProfit := totalProfit - withdrawal.Amount
-
-	// Log withdrawal deduction inside the transaction
-	deduction := models.Profit{
-		Email:     req.Email,
-		Amount:    netProfit,
-		Source:    "net profit calculation",
-		CreatedAt: time.Now(),
-		Date:      time.Now(),
-	}
-
-	if err := tx.Create(&deduction).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal deduction"})
-		return
-	}
+	//netProfit := totalProfit - withdrawal.Amount
+	//
+	//// Log withdrawal deduction inside the transaction
+	//deduction := models.Profit{
+	//	Email:     req.Email,
+	//	Amount:    netProfit,
+	//	Source:    "net profit calculation",
+	//	CreatedAt: time.Now(),
+	//	Date:      time.Now(),
+	//}
+	//
+	//if err := tx.Create(&deduction).Error; err != nil {
+	//	tx.Rollback()
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal deduction"})
+	//	return
+	//}
 
 	// Calculate the net profit after deduction
 
 	// Save the net profit back to the Profit table inside the transaction
-	netProfitEntry := models.Profit{
-		Email:     req.Email,
-		Amount:    netProfit,
-		Source:    "net profit calculation",
-		Date:      time.Now(),
-		CreatedAt: time.Now(),
-	}
-
-	if err := tx.Create(&netProfitEntry).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save net profit"})
-		return
-	}
-
-	// Commit the transaction
-	tx.Commit()
-
-	// Return successful response
+	//netProfitEntry := models.Profit{
+	//	Email:     req.Email,
+	//	Amount:    netProfit,
+	//	Source:    "net profit calculation",
+	//	Date:      time.Now(),
+	//	CreatedAt: time.Now(),
+	//}
+	//
+	//if err := tx.Create(&netProfitEntry).Error; err != nil {
+	//	tx.Rollback()
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save net profit"})
+	//	return
+	//}
+	//
+	//// Commit the transaction
+	//tx.Commit()
+	//
+	//// Return successful response
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "Net profit calculated and saved",
-		"net_profit":  netProfit,
-		"saved_entry": netProfitEntry,
+		"message": "Net profit calculated and saved",
+		//"net_profit":  netProfit,
+		//"saved_entry": netProfitEntry,
 	})
 
 	//c.JSON(http.StatusOK, gin.H{"message": "Withdrawal confirmed and deducted from profits",})
