@@ -852,7 +852,7 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 
 	// ✅ Calculate days since deposit
-	daysSinceDeposit := math.Floor(currentTime.Sub(deposit.CreatedAt).Hours() / 24)
+	daysSinceDeposit := math.Max(1, math.Floor(currentTime.Sub(deposit.CreatedAt).Hours()/24))
 
 	// ✅ Determine rate based on package
 	var rate float64
