@@ -933,7 +933,7 @@ func GenerateDailyProfits(c *gin.Context) {
 		if user.ProfitAddedStatus == "true" {
 			user.Balance += latestUpdatedProfit.Amount
 			user.ProfitAddedStatus = "true"
-			c.JSON(http.StatusAlreadyReported, gin.H{"error": "Profit already added to balance"})
+			c.JSON(http.StatusOK, gin.H{"error": "Profit already added to balance"})
 			return
 		}
 
