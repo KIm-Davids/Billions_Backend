@@ -514,7 +514,7 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 	deduction := models.Profit{
 		Email:     req.Email,
 		Amount:    netProfit,
-		Source:    "daily profit",
+		Source:    "net profit calculation",
 		CreatedAt: time.Now(),
 		Date:      time.Now(),
 	}
