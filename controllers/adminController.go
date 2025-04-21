@@ -472,33 +472,32 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	// Fetch the pending withdrawal
+	// Start DB transaction
+	tx := initializers.DB.Begin()
+
+	// Lock the withdrawal record to prevent concurrent modifications
 	var withdrawal models.Withdraw
-	if err := initializers.DB.
+	if err := tx.
 		Where("email = ? AND status = ? AND withdraw_id = ?", req.Email, "pending", req.WithdrawId).
 		First(&withdrawal).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusNotFound, gin.H{"error": "Withdrawal not found or already confirmed"})
 		return
 	}
 
-	// Start DB transaction
-	tx := initializers.DB.Begin()
-
-	// Update withdrawal to completed
+	// Update withdrawal to completed (minimal update)
 	withdrawal.Status = "completed"
-
 	if err := tx.Save(&withdrawal).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update withdrawal status"})
 		return
 	}
 
-	// Calculate total profit
+	// Fetch total profit outside the transaction (no locking needed here)
 	var totalProfit float64
-	if err := tx.Model(&models.Profit{}).
+	if err := initializers.DB.Model(&models.Profit{}).
 		Where("email = ?", req.Email).
 		Select("SUM(amount)").Scan(&totalProfit).Error; err != nil {
-		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch total profit"})
 		return
 	}
@@ -509,7 +508,7 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	// Add negative profit entry to deduct withdrawn amount
+	// Log withdrawal deduction inside the transaction
 	deduction := models.Profit{
 		Email:     req.Email,
 		Amount:    -withdrawal.Amount,
@@ -524,37 +523,10 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	//Return net profit
-	var netProfit float64
-	if err := initializers.DB.Model(&models.Profit{}).
-		Where("email = ?", req.Email).
-		Select("SUM(amount)").Scan(&netProfit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch profit balance"})
-		return
-	}
+	// Calculate the net profit after deduction
+	netProfit := totalProfit - withdrawal.Amount
 
-	var latestProfit models.Profit
-	if err := initializers.DB.
-		Where("email = ? AND amount > 0", req.Email).
-		Order("created_at DESC").
-		First(&latestProfit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No profit record found"})
-		return
-	}
-
-	var latestWithdrawal models.Withdraw
-	if err := initializers.DB.
-		Where("email = ? AND status = ?", req.Email, "completed").
-		Order("created_at DESC").
-		First(&latestWithdrawal).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No withdrawal record found"})
-		return
-	}
-
-	// 🧮 Calculate net profit
-	netProfit = latestProfit.Amount - latestWithdrawal.Amount
-
-	// 📝 Save net profit back to profit table
+	// Save the net profit back to the Profit table inside the transaction
 	netProfitEntry := models.Profit{
 		Email:     req.Email,
 		Amount:    netProfit,
@@ -563,20 +535,16 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		CreatedAt: time.Now(),
 	}
 
-	if err := initializers.DB.Create(&netProfitEntry).Error; err != nil {
+	if err := tx.Create(&netProfitEntry).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save net profit"})
 		return
 	}
 
-	//c.JSON(http.StatusOK, gin.H{
-	//	"email":      req.Email,
-	//	"net_profit": netProfit,
-	//	"message":    "Current profit balance fetched successfully",
-	//})
-
 	// Commit the transaction
 	tx.Commit()
 
+	// Return successful response
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Net profit calculated and saved",
 		"net_profit":  netProfit,
