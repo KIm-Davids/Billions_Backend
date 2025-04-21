@@ -844,10 +844,13 @@ func GenerateDailyProfits(c *gin.Context) {
 		profitGeneratedToday = true // Mark that profit already exists for today
 	}
 
-	// ✅ Get user's latest deposit
+	// fetch user deposit
 	var deposit models.Deposit
-	if err := initializers.DB.Where("email = ?", email).Order("created_at DESC").First(&deposit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch deposit"})
+	if err := initializers.DB.
+		Where("email = ? AND status = ?", email, "confirmed"). // Assuming `confirmed` field is a boolean
+		Order("created_at DESC").
+		First(&deposit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch confirmed deposit"})
 		return
 	}
 
