@@ -914,8 +914,9 @@ func GenerateDailyProfits(c *gin.Context) {
 		//message = "Profit calculated and added to balance (after 6PM)."
 	}
 
+	var latestUpdatedProfit models.Profit
+
 	if profitGeneratedToday {
-		var latestUpdatedProfit models.Profit
 
 		if err := initializers.DB.
 			Where("email = ? ", email).
@@ -963,12 +964,6 @@ func GenerateDailyProfits(c *gin.Context) {
 				return
 			}
 
-			c.JSON(http.StatusOK, gin.H{
-				"message":    "Latest updated profit found",
-				"net_profit": latestUpdatedProfit.Amount,
-				"entry":      latestUpdatedProfit,
-			})
-
 			var user models.User
 			if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
 				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
@@ -988,6 +983,11 @@ func GenerateDailyProfits(c *gin.Context) {
 			}
 		}
 	}
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Latest updated profit found",
+		"net_profit": latestUpdatedProfit.Amount,
+		"entry":      latestUpdatedProfit,
+	})
 
 }
 
