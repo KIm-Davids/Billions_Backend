@@ -914,49 +914,80 @@ func GenerateDailyProfits(c *gin.Context) {
 		//message = "Profit calculated and added to balance (after 6PM)."
 	}
 
-	var latestUpdatedProfit models.Profit
 	if profitGeneratedToday {
+		var latestUpdatedProfit models.Profit
+
 		if err := initializers.DB.
-			Where("email = ? AND source = ?", email, "net profit calculation").
+			Where("email = ? ", email).
 			Order("created_at DESC").
 			First(&latestUpdatedProfit).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
 			return
 		}
 
-		var user models.User
-		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-			return
+		if latestUpdatedProfit.Source == "net profit calculation" {
+			if err := initializers.DB.
+				Where("email = ? AND source = ?", email, "net profit calculation").
+				Order("created_at DESC").
+				First(&latestUpdatedProfit).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
+				return
+			}
+
+			var user models.User
+			if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+				return
+			}
+
+			if user.ProfitAddedStatus == "true" {
+				user.Balance += latestUpdatedProfit.Amount
+				user.ProfitAddedStatus = "true"
+				c.JSON(http.StatusConflict, gin.H{"error": "Profit already added to balance"})
+				return
+			}
+
+			if err := initializers.DB.Save(&user).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+				return
+			}
+
 		}
 
-		if user.ProfitAddedStatus == "true" {
-			user.Balance += latestUpdatedProfit.Amount
-			user.ProfitAddedStatus = "true"
-			c.JSON(http.StatusConflict, gin.H{"error": "Profit already added to balance"})
-			return
-		}
+		if latestUpdatedProfit.Source == "daily profit" {
+			if err := initializers.DB.
+				Where("email = ? AND source = ?", email, "daily profit").
+				Order("created_at DESC").
+				First(&latestUpdatedProfit).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
+				return
+			}
 
-		if err := initializers.DB.Save(&user).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
-			return
-		}
+			c.JSON(http.StatusOK, gin.H{
+				"message":    "Latest updated profit found",
+				"net_profit": latestUpdatedProfit.Amount,
+				"entry":      latestUpdatedProfit,
+			})
 
+			var user models.User
+			if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+				return
+			}
+
+			if user.ProfitAddedStatus == "true" {
+				user.Balance += latestUpdatedProfit.Amount
+				user.ProfitAddedStatus = "true"
+				c.JSON(http.StatusConflict, gin.H{"error": "Profit already added to balance"})
+				return
+			}
+
+			if err := initializers.DB.Save(&user).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+				return
+			}
+		}
 	}
-
-	if err := initializers.DB.
-		Where("email = ? AND source = ?", email, "daily profit").
-		Order("created_at DESC").
-		First(&latestUpdatedProfit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":    "Latest updated profit found",
-		"net_profit": latestUpdatedProfit.Amount,
-		"entry":      latestUpdatedProfit,
-	})
 
 }
 
