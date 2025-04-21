@@ -948,8 +948,8 @@ func GenerateDailyProfits(c *gin.Context) {
 		Where("email = ? AND source = ?", email, "daily profit").
 		Order("created_at DESC").
 		First(&latestUpdatedProfit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
-		return
+		//c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
+		//return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
