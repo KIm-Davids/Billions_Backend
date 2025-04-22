@@ -290,11 +290,20 @@ func WithdrawFromProfits(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create withdrawal"})
 			return
 		}
-		//
-		//c.JSON(http.StatusOK, gin.H{
-		//	"message":  "Withdrawal created successfully",
-		//	"withdraw": input,
-		//})
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":  "Transaction logged successfully",
+			"withdraw": input,
+		})
+		return
+	}
+}
+
+func WithdrawProfitsCtx(c *gin.Context) {
+
+	var input struct {
+		Email  string  `json:"email"`
+		Amount float64 `json:"amount"`
 	}
 
 	// Check for existing withdrawals (both confirmed and pending status)
@@ -304,6 +313,8 @@ func WithdrawFromProfits(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch withdrawal record"})
 		return
 	}
+
+	//fetch the latest withdrawal request that is pending then use that to fetch the amount and then fetch the sum of the profits and then minus the two together 9'9
 
 	// If a withdrawal exists with the same withdraw_id and it's already confirmed or pending, reject the request
 	if err == nil && (existingWithdrawal.Status == "withdrawn") {
@@ -315,7 +326,7 @@ func WithdrawFromProfits(c *gin.Context) {
 		// Handle the logic to process the withdrawal
 		var deposit models.Deposit
 		// Find the latest confirmed deposit
-		if err := initializers.DB.Where("LOWER(email) = ?", input.Email).First(&deposit).Error; err != nil {
+		if err := initializers.DB.Where("LOWER(email) = ? AND status = ?", input.Email, "confirmed").First(&deposit).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User deposit not found"})
 			return
 		}

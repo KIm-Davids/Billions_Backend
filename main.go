@@ -105,7 +105,7 @@ func main() {
 	router.GET("/getAllWithdrawProfit", controllers.GetUserWithdrawals)
 	router.POST("/confirmDailyProfit", controllers.ConfirmWithdrawProfit)
 	router.POST("/rejectWithdraw", controllers.RejectWithdraw)
-	//router.POST("/checkReferralBonus", controllers.RewardReferrer)
+	router.POST("/getWithdrawProfit", controllers.WithdrawProfitsCtx)
 	router.POST("/getReferCount", controllers.CountReferrals)
 	router.POST("/getReferrerCode", controllers.GetReferralCode)
 	router.POST("/getNetProfit", controllers.GetDailyProfit)
