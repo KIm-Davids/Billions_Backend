@@ -177,7 +177,7 @@ func Deposit(c *gin.Context) {
 
 	// Step 1: Ensure user exists and get their ID
 	var user models.User
-	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+	if err := initializers.DB.Where("LOWER(email) = ?", input.Email).First(&user).Error; err != nil {
 
 	}
 
