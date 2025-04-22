@@ -1184,7 +1184,7 @@ func GetUserWithdrawals(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"withdrawals": withdrawResponse})
 }
 
-func CalculateAndSaveNetProfit(c *gin.Context) {
+func GetDailyProfit(c *gin.Context) {
 	var req struct {
 		Email string `json:"email"` // Email of the user whose daily profit is to be fetched
 	}
