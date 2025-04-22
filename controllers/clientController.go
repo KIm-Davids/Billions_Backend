@@ -454,33 +454,24 @@ func WithdrawFromBalance(c *gin.Context) {
 
 func GetReferrerBonusDetails(c *gin.Context) {
 	var req struct {
-		Email string `json:"email"` // Email of the user whose referrer's balance is to be fetched
+		ReferID string `json:"refer_id"` // This should be the unique referrer ID
 	}
 
-	// Bind JSON body to struct
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	// Fetch the user's record from the database by email
-	var user models.User
-	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	// Fetch the referrer's referral bonus from the referral bonus table
+	// Fetch the referral bonus using the refer ID
 	var referrerBonus models.ReferralBonus
-	if err := initializers.DB.Where("referrer_id = ?", user.ReferredBy).First(&referrerBonus).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer bonus record not found"})
+	if err := initializers.DB.Where("referrer_id = ?", req.ReferID).First(&referrerBonus).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Referral bonus record not found"})
 		return
 	}
 
-	// Return the referrer's bonus balance
 	c.JSON(http.StatusOK, gin.H{
-		"referrer_email":   user.ReferredBy,
-		"referrer_balance": referrerBonus.Balance, // Return the referrer's bonus balance from the referral bonus DB
+		"referrer_id":      req.ReferID,
+		"referrer_balance": referrerBonus.Balance,
 	})
 }
 
