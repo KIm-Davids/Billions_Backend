@@ -237,15 +237,16 @@ func Deposit(c *gin.Context) {
 				return
 			}
 
-			referrer.Balance += bonus
+			bonus += bonus
 
 			// Log the referral bonus (optional)
 			referralBonus := models.ReferralBonus{
-				ReferrerID: referrer.ReferredBy,
-				ReferredID: user.ReferID,
-				Amount:     bonus,
-				CreatedAt:  time.Now(),
-				Balance:    referrer.Balance,
+				ReferrerID:           referrer.ReferredBy,
+				ReferredID:           user.ReferID,
+				Amount:               bonus,
+				CreatedAt:            time.Now(),
+				TransactionProcessed: "true",
+				Balance:              bonus,
 			}
 			if err := initializers.DB.Create(&referralBonus).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
@@ -276,7 +277,7 @@ func WithdrawFromProfits(c *gin.Context) {
 	}
 
 	// Validate input
-	if input.Email == "" || input.Amount <= 0 || input.WithdrawID == 0 {
+	if input.Email == "" || input.Amount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email, valid amount, and withdraw_id are required"})
 		return
 	}
@@ -1058,13 +1059,14 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	// ✅ Save the profit record
 	newProfit := models.Profit{
-		Email:           deposit.Email,
-		Amount:          profitAmount,
+		Email: deposit.Email,
+		//Amount:          profitAmount,
 		Source:          "new daily profit",
 		CreatedAt:       currentTime,
 		Date:            currentTime,
 		ProfitDate:      today, // this is key!
 		NetProfitStatus: "updatedProfit",
+		NewProfit:       profitAmount,
 	}
 	if err := initializers.DB.Create(&newProfit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})

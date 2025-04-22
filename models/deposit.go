@@ -11,4 +11,5 @@ type Deposit struct {
 	PackageType string    `json:"packageType"`
 	Amount      float64   `json:"amount"`
 	CreatedAt   time.Time `json:"created_at"`
+	ReferId     string
 }

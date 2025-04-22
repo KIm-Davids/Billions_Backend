@@ -11,4 +11,5 @@ type Profit struct {
 	ProfitDate      string
 	CreatedAt       time.Time
 	Date            time.Time `gorm:"not null"` // Store the date profits were generated
+	NewProfit       float64   `gorm:"default:0"`
 }
