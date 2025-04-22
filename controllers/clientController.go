@@ -232,7 +232,7 @@ func Deposit(c *gin.Context) {
 
 			// Fetch the referrer
 			var referrer models.User
-			if err := initializers.DB.Where("referred_by = ?", user.ReferredBy).First(&referrer).Error; err != nil {
+			if err := initializers.DB.Where("refer_id = ?", user.ReferredBy).First(&referrer).Error; err != nil {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
 				return
 			}
