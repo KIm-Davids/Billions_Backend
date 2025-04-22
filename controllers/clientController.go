@@ -362,7 +362,7 @@ func WithdrawFromProfits(c *gin.Context) {
 
 	}
 
-	c.JSON(http.StatusExpectationFailed, gin.H{"message": "Profit withdrawal not confirmed pls contact an admin"})
+	c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal pending please wait"})
 	return
 
 }
