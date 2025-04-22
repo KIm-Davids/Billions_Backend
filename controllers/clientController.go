@@ -110,9 +110,9 @@ func CreateClient(c *gin.Context) {
 		// Increment the referrer's referrals count
 		referrer.ReferralsCount += 1
 
-		// Create referrer record (if referrer record is being created for the first time)
-		if err := initializers.DB.Create(&referrer).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create referrer record"})
+		// Only update the referrer's record (no need to recreate the record)
+		if err := initializers.DB.Save(&referrer).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update referrer record"})
 			return
 		}
 	}
@@ -257,6 +257,41 @@ func Deposit(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
 			return
 		}
+
+		// Check if the user has a referrer
+		//handle referrals
+		if user.ReferredBy != "" {
+			// Calculate the referral bonus (5% of the deposit)
+			bonus := input.Amount * 0.05
+
+			// Fetch the referrer
+			var referrer models.User
+			if err := initializers.DB.Where("referred_by = ?", user.ReferredBy).First(&referrer).Error; err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+				return
+			}
+
+			// Log the referral bonus (optional)
+			referralBonus := models.ReferralBonus{
+				ReferrerID: referrer.ReferredBy,
+				ReferredID: user.ReferID,
+				Amount:     bonus,
+				CreatedAt:  time.Now(),
+			}
+			if err := initializers.DB.Create(&referralBonus).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
+				return
+			}
+
+			// Add the bonus to the referrer's balance (or profit)
+			referrer.Balance += bonus
+			if err := initializers.DB.Save(&referrer).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to credit referral bonus"})
+				return
+			}
+
+		}
+
 	}
 	// Successfully logged the transaction and updated user balance
 	c.JSON(http.StatusOK, gin.H{"message": "Transaction logged", "transaction": tx})
