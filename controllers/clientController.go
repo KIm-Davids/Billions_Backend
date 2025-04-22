@@ -470,17 +470,17 @@ func GetReferrerBonusDetails(c *gin.Context) {
 		return
 	}
 
-	// Fetch the referrer based on the ReferredBy field (referrer's ReferID)
-	var referrer models.User
-	if err := initializers.DB.Where("refer_id = ?", user.ReferredBy).First(&referrer).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+	// Fetch the referrer's referral bonus from the referral bonus table
+	var referrerBonus models.ReferralBonus
+	if err := initializers.DB.Where("referrer_id = ?", user.ReferredBy).First(&referrerBonus).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer bonus record not found"})
 		return
 	}
 
-	// Return the referrer's balance
+	// Return the referrer's bonus balance
 	c.JSON(http.StatusOK, gin.H{
-		"referrer_email":   referrer.Email,
-		"referrer_balance": referrer.Balance, // Return the referrer's balance field
+		"referrer_email":   user.ReferredBy,
+		"referrer_balance": referrerBonus.Balance, // Return the referrer's bonus balance from the referral bonus DB
 	})
 }
 
