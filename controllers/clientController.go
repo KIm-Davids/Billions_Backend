@@ -249,51 +249,49 @@ func Deposit(c *gin.Context) {
 func WithdrawFromProfits(c *gin.Context) {
 	var input models.Withdraw
 
+	// Bind input JSON to struct
 	if err := c.ShouldBindJSON(&input); err != nil {
-		fmt.Println("Bind error:", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	if input.Email == "" || input.Amount <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email and valid amount are required"})
+	// Validate input
+	if input.Email == "" || input.Amount <= 0 || input.WithdrawID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email, valid amount, and withdraw_id are required"})
 		return
 	}
 
-	// Log the withdrawal regardless of confirmation status
-	tx := models.Withdraw{
-		WithdrawAddress: input.WithdrawAddress,
-		Email:           input.Email,
-		WalletType:      input.WalletType,
-		Status:          input.Status,
-		Amount:          input.Amount,
-		Description:     input.Description,
-		CreatedAt:       time.Now(),
-		ProfitType:      "daily_profit",
-	}
-
-	if err := initializers.DB.Create(&tx).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal"})
+	// Check for existing withdrawals (both confirmed and pending status)
+	var existingWithdrawal models.Withdraw
+	err := initializers.DB.Where("email = ? AND withdraw_id = ?", input.Email, input.WithdrawID).First(&existingWithdrawal).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch withdrawal record"})
 		return
 	}
 
-	// For non-confirmed withdrawals, just log it and return success
-	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal logged and pending admin confirmation", "withdrawal": tx})
+	// If a withdrawal exists with the same withdraw_id and it's already confirmed or pending, reject the request
+	if err == nil && (existingWithdrawal.Status == "confirmed" || existingWithdrawal.Status == "pending") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "This withdrawal request is already being processed or has been confirmed"})
+		return
+	}
 
-	// Only process balance deduction if status is confirmed
-	if input.Status == "confirmed" {
+	if existingWithdrawal.Status == "confirmed" {
+		// Handle the logic to process the withdrawal
 		var deposit models.Deposit
+		// Find the latest confirmed deposit
 		if err := initializers.DB.Where("email = ?", input.Email).First(&deposit).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User deposit not found"})
 			return
 		}
 
+		// Define minimum withdrawal limits per package
 		minProfitWithdrawal := map[string]float64{
 			"test package":    10.0,
 			"pro package":     50.0,
 			"premium package": 100.0,
 		}
 
+		// Check if the package type is valid and retrieve the minimum amount
 		packageKey := strings.ToLower(deposit.PackageType)
 		minAmount, exists := minProfitWithdrawal[packageKey]
 		if !exists {
@@ -301,6 +299,7 @@ func WithdrawFromProfits(c *gin.Context) {
 			return
 		}
 
+		// Check if the requested amount is greater than the minimum required
 		if input.Amount < minAmount {
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": fmt.Sprintf("Minimum profit withdrawal for %s package is $%.2f", packageKey, minAmount),
@@ -308,38 +307,42 @@ func WithdrawFromProfits(c *gin.Context) {
 			return
 		}
 
+		// Fetch total profit available for withdrawal
 		var totalProfit float64
 		if err := initializers.DB.Model(&models.Profit{}).
-			Where("email = ? AND source = ?", input.Email, "daily profit").
+			Where("email = ? AND source = ?", input.Email, "new daily profit").
 			Select("SUM(amount)").Scan(&totalProfit).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate profit balance"})
 			return
 		}
 
+		// Check if the user has enough profit to withdraw
 		if totalProfit < input.Amount {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient profit balance"})
 			return
 		}
 
-		var user models.User
-		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		// Deduct the requested withdrawal amount from the profit record
+		totalProfit -= input.Amount
+
+		// Update withdrawal status to confirmed after processing
+		existingWithdrawal.Status = "withdrawn"
+		if err := initializers.DB.Save(&existingWithdrawal).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update withdrawal status"})
 			return
 		}
 
-		if input.Status == "confirmed" {
-			user.Profit -= input.Amount
-			user.Package = deposit.PackageType
-		}
-
-		if err := initializers.DB.Save(&user).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user profit"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal confirmed and processed", "withdrawal": tx})
+		// Respond with success
+		c.JSON(http.StatusOK, gin.H{
+			"message":    "Profit withdrawal confirmed and processed",
+			"withdrawal": existingWithdrawal,
+		})
 		return
+
 	}
+
+	c.JSON(http.StatusExpectationFailed, gin.H{"message": "Profit withdrawal not confirmed pls contact an admin"})
+	return
 
 }
 
@@ -1280,68 +1283,68 @@ func CalculateAndSaveNetProfit(c *gin.Context) {
 //
 //}
 
-func GetWithdrawDate(c *gin.Context) {
-	// You can receive email or user ID from query params
-	// Define a struct for the expected JSON body
-	var request struct {
-		Email string `json:"email" binding:"required"`
-	}
-
-	// Parse JSON body
-	if err := c.ShouldBindJSON(&request); err != nil || request.Email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
-		return
-	}
-
-	email := request.Email
-
-	if email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
-		return
-	}
-
-	// Fetch the user by email
-	var user models.User
-	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	// Get the most recent confirmed deposit
-	var deposit models.Deposit
-	if err := initializers.DB.
-		Where("email = ? AND status = ?", email, "confirmed").
-		Order("created_at desc").
-		First(&deposit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
-		return
-	}
-
-	// Determine the number of days based on the package
-	var waitingDays int
-	switch strings.ToLower(deposit.PackageType) {
-	case "test package":
-		waitingDays = 15
-	case "pro package":
-		waitingDays = 30
-	case "premium package":
-		waitingDays = 40
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
-		return
-	}
-
-	// Calculate withdraw date
-	withdrawDate := deposit.CreatedAt.Add(time.Duration(waitingDays) * 24 * time.Hour)
-	withdrawDateFormatted := withdrawDate.Format("January 02, 2006") // e.g. April 30, 2025
-
-	// Return the withdraw date
-	c.JSON(http.StatusOK, gin.H{
-		"withdraw_date": withdrawDateFormatted,
-		"package":       user.Package,
-		"days_waiting":  waitingDays,
-	})
-}
+//func GetWithdrawDate(c *gin.Context) {
+//	// You can receive email or user ID from query params
+//	// Define a struct for the expected JSON body
+//	var request struct {
+//		Email string `json:"email" binding:"required"`
+//	}
+//
+//	// Parse JSON body
+//	if err := c.ShouldBindJSON(&request); err != nil || request.Email == "" {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+//		return
+//	}
+//
+//	email := request.Email
+//
+//	if email == "" {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+//		return
+//	}
+//
+//	// Fetch the user by email
+//	var user models.User
+//	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+//		return
+//	}
+//
+//	// Get the most recent confirmed deposit
+//	var deposit models.Deposit
+//	if err := initializers.DB.
+//		Where("email = ? AND status = ?", email, "confirmed").
+//		Order("created_at desc").
+//		First(&deposit).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
+//		return
+//	}
+//
+//	// Determine the number of days based on the package
+//	var waitingDays int
+//	switch strings.ToLower(deposit.PackageType) {
+//	case "test package":
+//		waitingDays = 15
+//	case "pro package":
+//		waitingDays = 30
+//	case "premium package":
+//		waitingDays = 40
+//	default:
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
+//		return
+//	}
+//
+//	// Calculate withdraw date
+//	withdrawDate := deposit.CreatedAt.Add(time.Duration(waitingDays) * 24 * time.Hour)
+//	withdrawDateFormatted := withdrawDate.Format("January 02, 2006") // e.g. April 30, 2025
+//
+//	// Return the withdraw date
+//	c.JSON(http.StatusOK, gin.H{
+//		"withdraw_date": withdrawDateFormatted,
+//		"package":       user.Package,
+//		"days_waiting":  waitingDays,
+//	})
+//}
 
 func GetUserInfo(c *gin.Context) {
 
