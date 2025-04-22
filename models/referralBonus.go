@@ -12,5 +12,5 @@ type ReferralBonus struct {
 	Processed            string
 	TransactionProcessed string
 	CreatedAt            time.Time
-	Balance              int
+	Balance              float64
 }

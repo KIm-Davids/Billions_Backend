@@ -237,12 +237,15 @@ func Deposit(c *gin.Context) {
 				return
 			}
 
+			referrer.Balance += bonus
+
 			// Log the referral bonus (optional)
 			referralBonus := models.ReferralBonus{
 				ReferrerID: referrer.ReferredBy,
 				ReferredID: user.ReferID,
 				Amount:     bonus,
 				CreatedAt:  time.Now(),
+				Balance:    referrer.Balance,
 			}
 			if err := initializers.DB.Create(&referralBonus).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
@@ -250,11 +253,11 @@ func Deposit(c *gin.Context) {
 			}
 
 			// Add the bonus to the referrer's balance (or profit)
-			referrer.Balance += bonus
-			if err := initializers.DB.Save(&referrer).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to credit referral bonus"})
-				return
-			}
+
+			//if err := initializers.DB.Save(&referrer).Error; err != nil {
+			//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to credit referral bonus"})
+			//	return
+			//}
 
 		}
 
