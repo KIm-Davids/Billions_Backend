@@ -1079,32 +1079,32 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 }
 
-//
-//type ProfitRequest struct {
-//	Email string `json:"email"`
-//}
-//
-//func GetNewDailyProfitsByEmail(db *gorm.DB) gin.HandlerFunc {
-//	return func(c *gin.Context) {
-//		var req ProfitRequest
-//		if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" {
-//			c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
-//			return
-//		}
-//
-//		var profits []models.Profit
-//		err := initializers.DB.Where("email = ? AND source = ?", req.Email, "new daily profit").
-//			Order("created_at DESC").
-//			Find(&profits).Error
-//
-//		if err != nil {
-//			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch profits"})
-//			return
-//		}
-//
-//		c.JSON(http.StatusOK, profits)
-//	}
-//}
+func GetUserDailyProfit(c *gin.Context) {
+	var req struct {
+		Email string `json:"email"` // Email of the user whose daily profit is to be fetched
+	}
+
+	// Bind JSON body to struct
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Fetch the user's daily profit from the profit table based on their email and source = "new daily profit"
+	var totalDailyProfit float64
+	if err := initializers.DB.Model(&models.Profit{}).
+		Where("email = ? AND source = ?", req.Email, "new daily profit").
+		Select("SUM(amount)").Scan(&totalDailyProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate daily profit"})
+		return
+	}
+
+	// Return the total daily profit of the user
+	c.JSON(http.StatusOK, gin.H{
+		"email":        req.Email,
+		"daily_profit": totalDailyProfit,
+	})
+}
 
 func GetReferralCode(c *gin.Context) {
 	type RequestBody struct {
@@ -1186,50 +1186,29 @@ func GetUserWithdrawals(c *gin.Context) {
 }
 
 func CalculateAndSaveNetProfit(c *gin.Context) {
-	type ProfitRequest struct {
-		Email string `json:"email"`
+	var req struct {
+		Email string `json:"email"` // Email of the user whose daily profit is to be fetched
 	}
-
-	var req ProfitRequest
 
 	// Bind JSON body to struct
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	// Get current time in Africa/Lagos timezone
-	location, _ := time.LoadLocation("Africa/Lagos")
-	currentTime := time.Now().In(location)
-
-	// Get the user's latest confirmed deposit
-	var deposit models.Deposit
-	err := initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
-		Order("created_at DESC").
-		First(&deposit).Error
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
+	// Fetch the user's daily profit from the profit table based on their email and source = "new daily profit"
+	var totalDailyProfit float64
+	if err := initializers.DB.Model(&models.Profit{}).
+		Where("email = ? AND source = ?", req.Email, "new daily profit").
+		Select("SUM(amount)").Scan(&totalDailyProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate daily profit"})
 		return
 	}
 
-	// Sum all profits from the deposit date to the current date
-	var totalProfit float64
-	err = initializers.DB.Model(&models.Profit{}).
-		Where("email = ? AND created_at >= ?", req.Email, deposit.CreatedAt).
-		Select("SUM(amount)").Scan(&totalProfit).Error
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		return
-	}
-
-	// Return the total profit
+	// Return the total daily profit of the user
 	c.JSON(http.StatusOK, gin.H{
 		"email":        req.Email,
-		"total_profit": totalProfit,
-		"profit_since": deposit.CreatedAt.Format("2006-01-02"),
-		"current_date": currentTime.Format("2006-01-02"),
+		"daily_profit": totalDailyProfit,
 	})
 }
 
