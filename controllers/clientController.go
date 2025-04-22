@@ -375,11 +375,10 @@ func WithdrawFromProfits(c *gin.Context) {
 		})
 		return
 
+	} else {
+		c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal pending please wait"})
+		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Profit withdrawal pending please wait"})
-	return
-
 }
 
 func WithdrawFromBalance(c *gin.Context) {
