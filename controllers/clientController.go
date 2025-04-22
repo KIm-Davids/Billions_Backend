@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	"log"
 	"math"
 	"net/http"
 	"strings"
@@ -107,6 +106,15 @@ func CreateClient(c *gin.Context) {
 			return
 		}
 		referrerID = referrer.ReferID
+
+		// Increment the referrer's referrals count
+		referrer.ReferralsCount += 1
+
+		// Create referrer record (if referrer record is being created for the first time)
+		if err := initializers.DB.Create(&referrer).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create referrer record"})
+			return
+		}
 	}
 
 	// Hash the password
@@ -198,31 +206,39 @@ func Deposit(c *gin.Context) {
 		return
 	}
 
-	bonusAmount := input.Amount * 0.05
+	// Check if the user has a referrer
+	//handle referrals
+	if user.ReferredBy != "" {
+		// Calculate the referral bonus (5% of the deposit)
+		bonus := input.Amount * 0.05
 
-	if err := initializers.DB.
-		Model(&models.Deposit{}).
-		Where("email = ?", user.Email).
-		Count(&depositCount).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count deposits"})
-		return
-	}
+		// Fetch the referrer
+		var referrer models.User
+		if err := initializers.DB.Where("id = ?", user.ReferredBy).First(&referrer).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+			return
+		}
 
-	// If this is the user's first-ever deposit (any status)
-	//if depositCount == 1 && user.ReferredBy != "" {
-	// Log the referral bonus for processing later
-	referralBonus := models.ReferralBonus{
-		ReferrerID: user.ReferredBy, // should be the referrer’s email or refer_id
-		ReferredID: user.ReferID,    // the new user's ID or refer_id
-		Amount:     bonusAmount,     // maybe based on % of deposit
-		Processed:  "false",
-		RewardedAt: time.Now(),
-	}
+		// Log the referral bonus (optional)
+		referralBonus := models.ReferralBonus{
+			ReferrerID: referrer.ReferredBy,
+			ReferredID: user.ReferID,
+			Amount:     bonus,
+			CreatedAt:  time.Now(),
+		}
+		if err := initializers.DB.Create(&referralBonus).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
+			return
+		}
 
-	if err := initializers.DB.Create(&referralBonus).Error; err != nil {
-		log.Println("Failed to log referral bonus:", err)
+		// Add the bonus to the referrer's balance (or profit)
+		referrer.Balance += bonus
+		if err := initializers.DB.Save(&referrer).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to credit referral bonus"})
+			return
+		}
+
 	}
-	//}
 
 	// Update the user's balance if the deposit status is confirmed
 	if input.Status == "confirmed" {

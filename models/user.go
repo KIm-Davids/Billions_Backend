@@ -14,4 +14,6 @@ type User struct {
 	Package           string  `json:"package,omitempty"`
 	Profit            float64 `gorm:"default:0"`
 	ProfitAddedStatus string  `gorm:"not null"`
+	ReferralsCount    int     // Number of referrals the user has made
+
 }

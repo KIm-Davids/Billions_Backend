@@ -11,4 +11,6 @@ type ReferralBonus struct {
 	RewardedAt           time.Time // When the bonus was awarded
 	Processed            string
 	TransactionProcessed string
+	CreatedAt            time.Time
+	Balance              int
 }
