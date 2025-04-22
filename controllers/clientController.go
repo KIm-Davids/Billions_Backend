@@ -291,8 +291,8 @@ func WithdrawFromProfits(c *gin.Context) {
 	}
 
 	// If a withdrawal exists with the same withdraw_id and it's already confirmed or pending, reject the request
-	if err == nil && (existingWithdrawal.Status == "confirmed" || existingWithdrawal.Status == "pending") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "This withdrawal request is already being processed or has been confirmed"})
+	if err == nil && (existingWithdrawal.Status == "withdrawn") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "This withdrawal request has been withdrawn"})
 		return
 	}
 
@@ -332,7 +332,7 @@ func WithdrawFromProfits(c *gin.Context) {
 		var totalProfit float64
 		if err := initializers.DB.Model(&models.Profit{}).
 			Where("email = ? AND source = ?", input.Email, "new daily profit").
-			Select("SUM(amount)").Scan(&totalProfit).Error; err != nil {
+			Select("SUM(new_profit)").Scan(&totalProfit).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate profit balance"})
 			return
 		}
@@ -544,99 +544,99 @@ func GetReferrerBonusDetails(c *gin.Context) {
 //	})
 //}
 
-func RewardReferrer(c *gin.Context) {
-	var req struct {
-		Email    string `json:"email"`
-		Referrer string `json:"referrerId"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing email"})
-		return
-	}
-
-	var user models.User
-	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		return
-	}
-
-	//currentTime := time.Now()
-	//if currentTime.Hour() != 18 {
-	//	c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only processed at 6 PM"})
-	//	return
-	//}
-
-	// Check if bonus already processed
-	var existingBonus models.ReferralBonus
-	if err := initializers.DB.
-		Where("referred_id = ? AND referrer_id = ? AND processed = ?", user.ReferID, req.Referrer, "true").
-		First(&existingBonus).Error; err == nil {
-		c.JSON(http.StatusOK, gin.H{"message": "Referral bonus already processed"})
-	}
-
-	// Get the latest confirmed deposit by the referred user
-	var deposit models.Deposit
-	if err := initializers.DB.
-		Where("email = ? AND status = ?", user.Email, "confirmed").
-		Order("created_at DESC").
-		First(&deposit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposit found"})
-	}
-
-	// Find the referrer
-	var referrer models.User
-	if err := initializers.DB.
-		Where("referred_by = ?", req.Referrer).
-		First(&referrer).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
-	}
-
-	// Calculate 5% referral bonus
-	bonusAmount := 0.05 * deposit.Amount
-
-	// Save to referral bonus table
-	newBonus := models.ReferralBonus{
-		Email:      user.Email,
-		ReferrerID: req.Referrer,
-		ReferredID: user.ReferID,
-		Amount:     bonusAmount,
-		RewardedAt: time.Now(),
-		Processed:  "true",
-	}
-
-	if err := initializers.DB.Create(&newBonus).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save referral bonus"})
-		return
-	}
-
-	// ✅ Optionally: add to referrer’s profit table with tag
-	newProfit := models.Profit{
-		Email:           referrer.Email,
-		Amount:          bonusAmount,
-		Source:          "referrer bonus",
-		Date:            time.Now(),
-		CreatedAt:       time.Now(),
-		NetProfitStatus: "processed",
-	}
-
-	if err := initializers.DB.Create(&newProfit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profit record"})
-		return
-	}
-
-	if newBonus.ReferrerID == req.Referrer {
-		c.JSON(http.StatusOK, gin.H{
-			"bonus_amount": bonusAmount,
-		})
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":     "Referral bonus processed successfully",
-		"referrer_id": req.Referrer,
-		//"bonus_amount": bonusAmount,
-	})
-}
+//func RewardReferrer(c *gin.Context) {
+//	var req struct {
+//		Email    string `json:"email"`
+//		Referrer string `json:"referrerId"`
+//	}
+//
+//	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing email"})
+//		return
+//	}
+//
+//	var user models.User
+//	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+//		return
+//	}
+//
+//	//currentTime := time.Now()
+//	//if currentTime.Hour() != 18 {
+//	//	c.JSON(http.StatusOK, gin.H{"message": "Referral bonuses are only processed at 6 PM"})
+//	//	return
+//	//}
+//
+//	// Check if bonus already processed
+//	var existingBonus models.ReferralBonus
+//	if err := initializers.DB.
+//		Where("referred_id = ? AND referrer_id = ? AND processed = ?", user.ReferID, req.Referrer, "true").
+//		First(&existingBonus).Error; err == nil {
+//		c.JSON(http.StatusOK, gin.H{"message": "Referral bonus already processed"})
+//	}
+//
+//	// Get the latest confirmed deposit by the referred user
+//	var deposit models.Deposit
+//	if err := initializers.DB.
+//		Where("email = ? AND status = ?", user.Email, "confirmed").
+//		Order("created_at DESC").
+//		First(&deposit).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposit found"})
+//	}
+//
+//	// Find the referrer
+//	var referrer models.User
+//	if err := initializers.DB.
+//		Where("referred_by = ?", req.Referrer).
+//		First(&referrer).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+//	}
+//
+//	// Calculate 5% referral bonus
+//	bonusAmount := 0.05 * deposit.Amount
+//
+//	// Save to referral bonus table
+//	newBonus := models.ReferralBonus{
+//		Email:      user.Email,
+//		ReferrerID: req.Referrer,
+//		ReferredID: user.ReferID,
+//		Amount:     bonusAmount,
+//		RewardedAt: time.Now(),
+//		Processed:  "true",
+//	}
+//
+//	if err := initializers.DB.Create(&newBonus).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save referral bonus"})
+//		return
+//	}
+//
+//	//// ✅ Optionally: add to referrer’s profit table with tag
+//	//newProfit := models.Profit{
+//	//	Email:           referrer.Email,
+//	//	Amount:          bonusAmount,
+//	//	Source:          "referrer bonus",
+//	//	Date:            time.Now(),
+//	//	CreatedAt:       time.Now(),
+//	//	NetProfitStatus: "processed",
+//	//}
+//
+//	if err := initializers.DB.Create(&newProfit).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save profit record"})
+//		return
+//	}
+//
+//	if newBonus.ReferrerID == req.Referrer {
+//		c.JSON(http.StatusOK, gin.H{
+//			"bonus_amount": bonusAmount,
+//		})
+//	}
+//
+//	c.JSON(http.StatusOK, gin.H{
+//		"message":     "Referral bonus processed successfully",
+//		"referrer_id": req.Referrer,
+//		//"bonus_amount": bonusAmount,
+//	})
+//}
 
 //func GetReferrerBonusTotal(c *gin.Context) {
 //	var req struct {
@@ -1065,40 +1065,13 @@ func GenerateDailyProfits(c *gin.Context) {
 		CreatedAt:       currentTime,
 		Date:            currentTime,
 		ProfitDate:      today, // this is key!
-		NetProfitStatus: "updatedProfit",
+		NetProfitStatus: "profit updated",
 		NewProfit:       profitAmount,
 	}
 	if err := initializers.DB.Create(&newProfit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
 		return
 	}
-}
-
-func GetUserDailyProfit(c *gin.Context) {
-	var req struct {
-		Email string `json:"email"` // Email of the user whose daily profit is to be fetched
-	}
-
-	// Bind JSON body to struct
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-		return
-	}
-
-	// Fetch the user's daily profit from the profit table based on their email and source = "new daily profit"
-	var totalDailyProfit float64
-	if err := initializers.DB.Model(&models.Profit{}).
-		Where("email = ? AND source = ?", req.Email, "new daily profit").
-		Select("SUM(new_profit)").Scan(&totalDailyProfit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate daily profit"})
-		return
-	}
-
-	// Return the total daily profit of the user
-	c.JSON(http.StatusOK, gin.H{
-		"email":        req.Email,
-		"daily_profit": totalDailyProfit,
-	})
 }
 
 func GetReferralCode(c *gin.Context) {
