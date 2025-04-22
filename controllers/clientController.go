@@ -1416,31 +1416,25 @@ func GetUserInfo(c *gin.Context) {
 }
 
 func CountReferrals(c *gin.Context) {
-	var req struct {
-		ReferrerId string `json:"referrerId"`
+	type ReferralRequest struct {
+		Email string `json:"email"`
 	}
+	var request ReferralRequest
 
-	// Bind the request JSON and check for the required 'ReferrerId'
-	if err := c.ShouldBindJSON(&req); err != nil || req.ReferrerId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Referrer ID is required"})
+	// Bind the incoming JSON request body to the ReferralRequest struct
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
-	var referralCount int64
-
-	// Count the number of people referred by the given referrerId
-	err := initializers.DB.
-		Model(&models.ReferralBonus{}).
-		Where("referrer_id = ?", req.ReferrerId).
-		Count(&referralCount).Error
-
+	// Retrieve the user by their email to get the referral count
+	var user models.User
+	err := initializers.DB.Where("email = ?", request.Email).First(&user).Error
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count referrals"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"referrer_id":    req.ReferrerId,
-		"referral_count": referralCount,
-	})
+	// Return the referral count as a JSON response
+	c.JSON(http.StatusOK, gin.H{"referral_count": user.ReferralsCount})
 }
