@@ -280,6 +280,21 @@ func WithdrawFromProfits(c *gin.Context) {
 	if input.Email == "" || input.Amount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email, valid amount, and withdraw_id are required"})
 		return
+	} else {
+		// Set default fields if needed
+		input.Status = "pending"
+		input.CreatedAt = time.Now()
+
+		// Save to database
+		if err := initializers.DB.Create(&input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create withdrawal"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":  "Withdrawal created successfully",
+			"withdraw": input,
+		})
 	}
 
 	// Check for existing withdrawals (both confirmed and pending status)
