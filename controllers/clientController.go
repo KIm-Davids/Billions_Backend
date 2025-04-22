@@ -206,40 +206,6 @@ func Deposit(c *gin.Context) {
 		return
 	}
 
-	// Check if the user has a referrer
-	//handle referrals
-	if user.ReferredBy != "" {
-		// Calculate the referral bonus (5% of the deposit)
-		bonus := input.Amount * 0.05
-
-		// Fetch the referrer
-		var referrer models.User
-		if err := initializers.DB.Where("referred_by = ?", user.ReferredBy).First(&referrer).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
-			return
-		}
-
-		// Log the referral bonus (optional)
-		referralBonus := models.ReferralBonus{
-			ReferrerID: referrer.ReferredBy,
-			ReferredID: user.ReferID,
-			Amount:     bonus,
-			CreatedAt:  time.Now(),
-		}
-		if err := initializers.DB.Create(&referralBonus).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
-			return
-		}
-
-		// Add the bonus to the referrer's balance (or profit)
-		referrer.Balance += bonus
-		if err := initializers.DB.Save(&referrer).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to credit referral bonus"})
-			return
-		}
-
-	}
-
 	// Update the user's balance if the deposit status is confirmed
 	if input.Status == "confirmed" {
 		var user models.User
@@ -1061,7 +1027,7 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	//check for confirmed deposit and the time it occurred
 	var deposit models.Deposit
-	err = initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
+	err = initializers.DB.Where("email = ? AND hash = ? AND status = ?", req.Email, req.Hash, "confirmed").
 		Order("created_at DESC").
 		First(&deposit).Error
 
