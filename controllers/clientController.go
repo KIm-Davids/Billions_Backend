@@ -182,7 +182,7 @@ func Deposit(c *gin.Context) {
 	}
 
 	// Check if it's the user's first deposit
-	initializers.DB.Model(&models.Deposit{}).Where("email = ?", input.Email).Count(&depositCount)
+	initializers.DB.Model(&models.Deposit{}).Where("LOWER(email) = ?", input.Email).Count(&depositCount)
 
 	// Check for duplicate transaction hash
 	if err := initializers.DB.Where("hash = ?", input.Hash).First(&existingTx).Error; err == nil {
@@ -209,7 +209,7 @@ func Deposit(c *gin.Context) {
 	// Update the user's balance if the deposit status is confirmed
 	if input.Status == "confirmed" {
 		var user models.User
-		if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		if err := initializers.DB.Where("LOWER(email) = ?", input.Email).First(&user).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}
@@ -299,7 +299,7 @@ func WithdrawFromProfits(c *gin.Context) {
 
 	// Check for existing withdrawals (both confirmed and pending status)
 	var existingWithdrawal models.Withdraw
-	err := initializers.DB.Where("email = ? ", input.Email).First(&existingWithdrawal).Error
+	err := initializers.DB.Where("LOWER(email) = ? ", input.Email).First(&existingWithdrawal).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch withdrawal record"})
 		return
@@ -315,7 +315,7 @@ func WithdrawFromProfits(c *gin.Context) {
 		// Handle the logic to process the withdrawal
 		var deposit models.Deposit
 		// Find the latest confirmed deposit
-		if err := initializers.DB.Where("email = ?", input.Email).First(&deposit).Error; err != nil {
+		if err := initializers.DB.Where("LOWER(email) = ?", input.Email).First(&deposit).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User deposit not found"})
 			return
 		}
@@ -346,7 +346,7 @@ func WithdrawFromProfits(c *gin.Context) {
 		// Fetch total profit available for withdrawal
 		var totalProfit float64
 		if err := initializers.DB.Model(&models.Profit{}).
-			Where("email = ? AND source = ?", input.Email, "new daily profit").
+			Where("LOWER(email) = ? AND source = ?", input.Email, "new daily profit").
 			Select("SUM(new_profit)").Scan(&totalProfit).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate profit balance"})
 			return
@@ -398,14 +398,14 @@ func WithdrawFromBalance(c *gin.Context) {
 
 	// Find the user by email
 	var user models.User
-	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+	if err := initializers.DB.Where("LOWER(email) = ?", input.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
 	// Get the latest deposit made by the user (used to calculate waiting period)
 	var latestDeposit models.Deposit
-	if err := initializers.DB.Where("email = ?", input.Email).Order("created_at desc").First(&latestDeposit).Error; err != nil {
+	if err := initializers.DB.Where("LOWER(email) = ?", input.Email).Order("created_at desc").First(&latestDeposit).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No deposit found for user"})
 		return
 	}
