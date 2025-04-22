@@ -996,7 +996,6 @@ func GenerateDailyProfits(c *gin.Context) {
 	// Request body struct
 	type DepositRequest struct {
 		Email string `json:"email"`
-		Hash  string `json:"hash"`
 	}
 
 	var req DepositRequest
@@ -1027,7 +1026,7 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	//check for confirmed deposit and the time it occurred
 	var deposit models.Deposit
-	err = initializers.DB.Where("email = ? AND hash = ? AND status = ?", req.Email, req.Hash, "confirmed").
+	err = initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
 		Order("created_at DESC").
 		First(&deposit).Error
 
