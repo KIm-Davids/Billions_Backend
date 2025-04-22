@@ -290,7 +290,7 @@ func WithdrawFromProfits(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create withdrawal"})
 			return
 		}
-
+		//
 		//c.JSON(http.StatusOK, gin.H{
 		//	"message":  "Withdrawal created successfully",
 		//	"withdraw": input,
