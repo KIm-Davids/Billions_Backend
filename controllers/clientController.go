@@ -291,10 +291,10 @@ func WithdrawFromProfits(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"message":  "Withdrawal created successfully",
-			"withdraw": input,
-		})
+		//c.JSON(http.StatusOK, gin.H{
+		//	"message":  "Withdrawal created successfully",
+		//	"withdraw": input,
+		//})
 	}
 
 	// Check for existing withdrawals (both confirmed and pending status)
