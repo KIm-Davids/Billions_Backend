@@ -8,6 +8,7 @@ type Profit struct {
 	Amount          float64 `gorm:"not null"`
 	Source          string  `gorm:"not null"` // e.g., "daily profit"
 	NetProfitStatus string  `gorm:"not null"`
+	ProfitDate      string
 	CreatedAt       time.Time
 	Date            time.Time `gorm:"not null"` // Store the date profits were generated
 }

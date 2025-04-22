@@ -29,6 +29,14 @@ func ConnectToDb() {
 
 	//database.AutoMigrate(&models.Admin{})
 	//database.AutoMigrate(&models.Client{})
+
+	// ✅ Add the unique index for daily profit only once source = 'new daily profit'
+	database.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_daily_profit 
+		ON profits (email, profit_date) 
+		WHERE source = 'new daily profit';
+	`)
+
 	DB = database
 
 }
