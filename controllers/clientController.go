@@ -1089,7 +1089,7 @@ func GetUserDailyProfit(c *gin.Context) {
 	var totalDailyProfit float64
 	if err := initializers.DB.Model(&models.Profit{}).
 		Where("email = ? AND source = ?", req.Email, "new daily profit").
-		Select("SUM(amount)").Scan(&totalDailyProfit).Error; err != nil {
+		Select("SUM(new_profit)").Scan(&totalDailyProfit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate daily profit"})
 		return
 	}
@@ -1195,7 +1195,7 @@ func GetDailyProfit(c *gin.Context) {
 	var totalDailyProfit float64
 	if err := initializers.DB.Model(&models.Profit{}).
 		Where("email = ? AND source = ?", req.Email, "new daily profit").
-		Select("SUM(amount)").Scan(&totalDailyProfit).Error; err != nil {
+		Select("SUM(new_profit)").Scan(&totalDailyProfit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate daily profit"})
 		return
 	}

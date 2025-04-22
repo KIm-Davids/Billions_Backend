@@ -497,7 +497,7 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 	var totalProfit float64
 	if err := initializers.DB.Model(&models.Profit{}).
 		Where("email = ?", req.Email).
-		Select("SUM(amount)").Scan(&totalProfit).Error; err != nil {
+		Select("SUM(new_profit)").Scan(&totalProfit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch total profit"})
 		return
 	}
@@ -517,6 +517,7 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		Source:    "net profit calculation",
 		CreatedAt: time.Now(),
 		Date:      time.Now(),
+		//NewProfit: netProfit,
 	}
 
 	if err := tx.Create(&deduction).Error; err != nil {
@@ -529,11 +530,12 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 
 	// Save the net profit back to the Profit table inside the transaction
 	netProfitEntry := models.Profit{
-		Email:     req.Email,
-		Amount:    netProfit,
+		Email: req.Email,
+		//Amount:    netProfit,
 		Source:    "net profit calculation",
 		Date:      time.Now(),
 		CreatedAt: time.Now(),
+		NewProfit: netProfit,
 	}
 
 	if err := tx.Create(&netProfitEntry).Error; err != nil {
