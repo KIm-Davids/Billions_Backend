@@ -524,11 +524,14 @@ func GetReferrerBonusDetails(c *gin.Context) {
 	bonus := deposit.Amount * 0.05
 
 	referralBonus := models.ReferralBonus{
+		Email:                referredUser.Email,
 		ReferrerID:           referrer.ReferID,
 		ReferredID:           referredUser.ReferID,
 		Amount:               bonus,
+		RewardedAt:           time.Now(),
+		Processed:            "true", // or "yes" if that's what you use
+		TransactionProcessed: "true", // or remove if not used
 		CreatedAt:            time.Now(),
-		TransactionProcessed: "true",
 		Balance:              bonus,
 	}
 
