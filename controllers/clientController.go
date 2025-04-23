@@ -1203,6 +1203,7 @@ func GetDailyProfit(c *gin.Context) {
 		"email":        req.Email,
 		"daily_profit": totalDailyProfit,
 	})
+	return
 }
 
 //func GetUserProfits(c *gin.Context) {
