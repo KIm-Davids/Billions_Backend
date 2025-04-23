@@ -301,26 +301,26 @@ func WithdrawFromProfits(c *gin.Context) {
 
 func WithdrawProfitsCtx(c *gin.Context) {
 
-	//var input struct {
-	//	Email  string  `json:"email"`
-	//	Amount float64 `json:"amount"`
-	//}
-	//
-	//if err := c.ShouldBindJSON(&input); err != nil {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-	//	return
-	//}
+	var input struct {
+		Email  string  `json:"email"`
+		Amount float64 `json:"amount"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
 
 	// Check for existing withdrawals (both confirmed and pending status)
-	var existingWithdrawal models.Withdraw
+	//var existingWithdrawal models.Withdraw
+	//err := initializers.DB.
+	//	Where("", ).
+	//	Order("created_at DESC").
+	//	First(&existingWithdrawal).Error
+
+	// Check for existing withdrawals (both confirmed and pending status)
 	err := initializers.DB.
-		Where("status = ?", "pending").
-		Order("created_at DESC").
-		First(&existingWithdrawal).Error
-
-	// Check for existing withdrawals (both confirmed and pending status)
-	err = initializers.DB.
-		Where("email = ?", existingWithdrawal.Email).
+		Where("email = ? AND status = ?", input.Email, "pending").
 		Order("created_at DESC").
 		First(&existingWithdrawal).Error
 
