@@ -386,12 +386,14 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		//}
 
 		newProfitRecord := models.Profit{
-			Email:     existingWithdrawal.Email,
-			NewProfit: -existingWithdrawal.Amount,
-			Source:    "new daily profit",
-			CreatedAt: time.Now(),
+			Email:           existingWithdrawal.Email,
+			Amount:          0, // or whatever logic you use when it's just an update/deduction
+			NewProfit:       -existingWithdrawal.Amount,
+			Source:          "new daily profit",
+			NetProfitStatus: "deducted", // or whatever status makes sense in your context
+			CreatedAt:       time.Now(),
+			Date:            time.Now(), // or the original profit date if applicable
 		}
-
 		if err := initializers.DB.Create(&newProfitRecord).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save updated net profit"})
 			return
