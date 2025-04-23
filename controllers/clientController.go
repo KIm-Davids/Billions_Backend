@@ -309,7 +309,7 @@ func WithdrawProfitsCtx(c *gin.Context) {
 	// Check for existing withdrawals (both confirmed and pending status)
 	var existingWithdrawal models.Withdraw
 	err := initializers.DB.
-		Where("LOWER(email) = ?", strings.ToLower(input.Email)).
+		Where("email = ?", strings.ToLower(input.Email)).
 		Order("created_at DESC").
 		First(&existingWithdrawal).Error
 
@@ -330,7 +330,7 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		// Handle the logic to process the withdrawal
 		var deposit models.Deposit
 		// Find the latest confirmed deposit
-		if err := initializers.DB.Where("LOWER(email) = ? AND status = ?", input.Email, "confirmed").First(&deposit).Error; err != nil {
+		if err := initializers.DB.Where("email = ? AND status = ?", input.Email, "confirmed").First(&deposit).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User deposit not found"})
 			return
 		}
@@ -361,7 +361,7 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		// Fetch total profit available for withdrawal
 		var totalProfit float64
 		if err := initializers.DB.Model(&models.Profit{}).
-			Where("LOWER(email) = ? AND source = ?", input.Email, "new daily profit").
+			Where("email = ? AND source = ?", input.Email, "new daily profit").
 			Select("SUM(new_profit)").Scan(&totalProfit).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate profit balance"})
 			return
