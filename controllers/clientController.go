@@ -309,7 +309,7 @@ func WithdrawProfitsCtx(c *gin.Context) {
 	// Check for existing withdrawals (both confirmed and pending status)
 	var existingWithdrawal models.Withdraw
 	err := initializers.DB.
-		Where("email = ?", strings.ToLower(input.Email)).
+		Where("email = ?", input.Email).
 		Order("created_at DESC").
 		First(&existingWithdrawal).Error
 
