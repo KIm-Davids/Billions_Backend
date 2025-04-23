@@ -379,15 +379,15 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		}
 
 		// Deduct the requested withdrawal amount from the profit record
-		netProfit := totalProfit - input.Amount
+		//netProfit := totalProfit - input.Amount
 
-		if netProfit < 0 {
-			netProfit = 0
-		}
+		//if netProfit < 0 {
+		//	netProfit = 0
+		//}
 
 		newProfitRecord := models.Profit{
 			Email:     input.Email,
-			NewProfit: netProfit,
+			NewProfit: -input.Amount,
 			Source:    "new daily profit",
 			CreatedAt: time.Now(),
 		}
