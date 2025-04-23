@@ -574,6 +574,9 @@ func FundReferrerBonus(c *gin.Context) {
 		return
 	}
 
+	if req.Email != referrer.Email {
+	}
+
 	// Step 3: Fetch all bonuses processed for this referrer using the referrer's email
 	var totalBonus float64
 	if err := initializers.DB.
@@ -582,6 +585,16 @@ func FundReferrerBonus(c *gin.Context) {
 		Select("SUM(balance)").
 		Scan(&totalBonus).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bonus data"})
+		return
+	}
+
+	// Step 4: Extra validation to check if the requestor is the referrer
+	if req.Email != referrer.Email {
+		// Instead of stopping the flow, return 0 balance with OK status
+		c.JSON(http.StatusOK, gin.H{
+			"referrer_email": referrer.Email,
+			"total_bonus":    0, // No bonus available for non-referrers
+		})
 		return
 	}
 
