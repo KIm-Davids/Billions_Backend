@@ -306,6 +306,11 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		Amount float64 `json:"amount"`
 	}
 
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
 	// Check for existing withdrawals (both confirmed and pending status)
 	var existingWithdrawal models.Withdraw
 	err := initializers.DB.
