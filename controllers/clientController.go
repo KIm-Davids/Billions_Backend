@@ -497,11 +497,11 @@ func GetReferrerBonusDetails(c *gin.Context) {
 		return
 	}
 
-	// Step 2: Check if user has a referrer
-	if referredUser.ReferredBy == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "This user has no referrer"})
-		return
-	}
+	//// Step 2: Check if user has a referrer
+	//if referredUser.ReferredBy == "" {
+	//	c.JSON(http.StatusBadRequest, gin.H{"error": "This user has no referrer"})
+	//	return
+	//}
 
 	// Step 3: Get the latest confirmed deposit for the referred user
 	var deposit models.Deposit
