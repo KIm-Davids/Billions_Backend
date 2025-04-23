@@ -341,7 +341,7 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		// Handle the logic to process the withdrawal
 		var deposit models.Deposit
 		// Find the latest confirmed deposit
-		if err := initializers.DB.Where("email = ? AND status = ?", input.Email, "confirmed").First(&deposit).Error; err != nil {
+		if err := initializers.DB.Where("email = ? AND status = ?", existingWithdrawal.Email, "confirmed").First(&deposit).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User deposit not found"})
 			return
 		}
@@ -362,7 +362,7 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		}
 
 		// Check if the requested amount is greater than the minimum required
-		if input.Amount < minAmount {
+		if existingWithdrawal.Amount < minAmount {
 			c.JSON(http.StatusForbidden, gin.H{
 				"error": fmt.Sprintf("Minimum profit withdrawal for %s package is $%.2f", packageKey, minAmount),
 			})
@@ -372,14 +372,14 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		// Fetch total profit available for withdrawal
 		var totalProfit float64
 		if err := initializers.DB.Model(&models.Profit{}).
-			Where("email = ? AND source = ?", input.Email, "new daily profit").
+			Where("email = ? AND source = ?", existingWithdrawal.Email, "new daily profit").
 			Select("SUM(new_profit)").Scan(&totalProfit).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate profit balance"})
 			return
 		}
 
 		// Check if the user has enough profit to withdraw
-		if totalProfit < input.Amount {
+		if totalProfit < existingWithdrawal.Amount {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient profit balance"})
 			return
 		}
@@ -392,8 +392,8 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		//}
 
 		newProfitRecord := models.Profit{
-			Email:     input.Email,
-			NewProfit: -input.Amount,
+			Email:     existingWithdrawal.Email,
+			NewProfit: -existingWithdrawal.Amount,
 			Source:    "new daily profit",
 			CreatedAt: time.Now(),
 		}
