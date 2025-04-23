@@ -239,7 +239,7 @@ func Deposit(c *gin.Context) {
 
 			// Log the referral bonus (optional)
 			referralBonus := models.ReferralBonus{
-				ReferrerID:           referrer.ReferredBy,
+				ReferrerID:           referrer.ReferID,
 				ReferredID:           user.ReferID,
 				Amount:               bonus,
 				CreatedAt:            time.Now(),
