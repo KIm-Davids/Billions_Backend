@@ -308,9 +308,13 @@ func WithdrawProfitsCtx(c *gin.Context) {
 
 	// Check for existing withdrawals (both confirmed and pending status)
 	var existingWithdrawal models.Withdraw
-	err := initializers.DB.Where("LOWER(email) = ? ", input.Email).First(&existingWithdrawal).Error
+	err := initializers.DB.
+		Where("LOWER(email) = ?", strings.ToLower(input.Email)).
+		Order("created_at DESC").
+		First(&existingWithdrawal).Error
+
 	if err != nil && err != gorm.ErrRecordNotFound {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch withdrawal record"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch latest withdrawal record"})
 		return
 	}
 
