@@ -574,12 +574,6 @@ func FundReferrerBonus(c *gin.Context) {
 		return
 	}
 
-	// Extra validation: Only the actual referrer can request this
-	if req.Email != referrer.Email {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized to view this data"})
-		return
-	}
-
 	// Step 3: Fetch all bonuses processed for this referrer using the referrer's email
 	var totalBonus float64
 	if err := initializers.DB.
