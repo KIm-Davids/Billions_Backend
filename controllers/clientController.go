@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"log"
 	"math"
 	"net/http"
 	"strings"
@@ -482,7 +483,7 @@ func WithdrawFromBalance(c *gin.Context) {
 
 func GetReferrerBonusDetails(c *gin.Context) {
 	var req struct {
-		Email string `json:"email"`
+		Email string `json:"email"` // This should be the referred user's email
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -497,13 +498,16 @@ func GetReferrerBonusDetails(c *gin.Context) {
 		return
 	}
 
-	//// Step 2: Check if user has a referrer
-	//if referredUser.ReferredBy == "" {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "This user has no referrer"})
-	//	return
-	//}
+	// Step 3: Check if referral bonus was already given and processed
+	var existingBonus models.ReferralBonus
+	if err := initializers.DB.
+		Where("referred_id = ? AND transaction_processed = ?", referredUser.ReferID, "true").
+		First(&existingBonus).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Referral bonus already processed"})
+		return
+	}
 
-	// Step 3: Get the latest confirmed deposit for the referred user
+	// Step 4: Get the latest confirmed deposit
 	var deposit models.Deposit
 	if err := initializers.DB.
 		Where("email = ? AND status = ?", req.Email, "confirmed").
@@ -513,46 +517,39 @@ func GetReferrerBonusDetails(c *gin.Context) {
 		return
 	}
 
-	// Step 4: Find the referrer by ReferID
+	// Step 5: Find the referrer
 	var referrer models.User
 	if err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
 		return
 	}
 
-	// Step 5: Calculate and log referral bonus (5%)
+	// Step 6: Calculate and log bonus
 	bonus := deposit.Amount * 0.05
 
 	referralBonus := models.ReferralBonus{
-		Email:                referredUser.Email,
+		Email:                referrer.Email, // Now correctly logged under the referrer's email
 		ReferrerID:           referrer.ReferID,
 		ReferredID:           referredUser.ReferID,
 		Amount:               bonus,
 		RewardedAt:           time.Now(),
-		Processed:            "true", // or "yes" if that's what you use
-		TransactionProcessed: "true", // or remove if not used
+		Processed:            "true",
+		TransactionProcessed: "true",
 		CreatedAt:            time.Now(),
 		Balance:              bonus,
 	}
 
-	// Save bonus log
 	if err := initializers.DB.Create(&referralBonus).Error; err != nil {
+		log.Println("Failed to create referral bonus:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
 		return
 	}
 
-	//// Optional: Update referrer's balance
-	//referrer.Balance += bonus
-	//if err := initializers.DB.Save(&referrer).Error; err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update referrer balance"})
-	//	return
-	//}
-
 	c.JSON(http.StatusOK, gin.H{
-		"referrer_id":      referrer.ReferID,
-		"referred_email":   referredUser.Email,
-		"bonus_amount":     bonus,
-		"referrer_balance": referrer.Balance,
+		"referrer_id":    referrer.ReferID,
+		"referrer_email": referrer.Email,
+		"referred_email": referredUser.Email,
+		"bonus_amount":   bonus,
 	})
 }
 
