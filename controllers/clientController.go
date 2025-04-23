@@ -326,7 +326,7 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		return
 	}
 
-	if existingWithdrawal.Status == "confirmed" {
+	if existingWithdrawal.Status == "completed" {
 		// Handle the logic to process the withdrawal
 		var deposit models.Deposit
 		// Find the latest confirmed deposit
