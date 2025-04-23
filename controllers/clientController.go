@@ -398,7 +398,7 @@ func WithdrawProfitsCtx(c *gin.Context) {
 		// Respond with success
 		c.JSON(http.StatusOK, gin.H{
 			"message":    "Profit withdrawal confirmed and processed",
-			"withdrawal": existingWithdrawal,
+			"withdrawal": newProfitRecord.NewProfit,
 		})
 		return
 
