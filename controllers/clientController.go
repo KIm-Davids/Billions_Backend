@@ -526,25 +526,22 @@ func ProcessReferralBonus(c *gin.Context) {
 	// Step 6: Calculate and log bonus
 	bonus := deposit.Amount * 0.05
 
-	if referrer.ReferID != "" {
+	referralBonus := models.ReferralBonus{
+		Email:                referrer.Email, // Now correctly logged under the referrer's email
+		ReferrerID:           referrer.ReferID,
+		ReferredID:           referredUser.ReferID,
+		Amount:               bonus,
+		RewardedAt:           time.Now(),
+		Processed:            "true",
+		TransactionProcessed: "true",
+		CreatedAt:            time.Now(),
+		Balance:              bonus,
+	}
 
-		referralBonus := models.ReferralBonus{
-			Email:                referrer.Email, // Now correctly logged under the referrer's email
-			ReferrerID:           referrer.ReferID,
-			ReferredID:           referredUser.ReferID,
-			Amount:               bonus,
-			RewardedAt:           time.Now(),
-			Processed:            "true",
-			TransactionProcessed: "true",
-			CreatedAt:            time.Now(),
-			Balance:              bonus,
-		}
-
-		if err := initializers.DB.Create(&referralBonus).Error; err != nil {
-			log.Println("Failed to create referral bonus:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
-			return
-		}
+	if err := initializers.DB.Create(&referralBonus).Error; err != nil {
+		log.Println("Failed to create referral bonus:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
