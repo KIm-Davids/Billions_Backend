@@ -587,7 +587,7 @@ func FundReferrerBonus(c *gin.Context) {
 	var totalBonus float64
 	if err := initializers.DB.
 		Model(&models.ReferralBonus{}).
-		Where("referrer_id = ? AND transaction_processed = ?", referrer.ReferID, "true").
+		Where("referred_id = ? AND transaction_processed = ?", user.ReferID, "true").
 		Select("SUM(balance)").
 		Scan(&totalBonus).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bonus data"})
