@@ -767,21 +767,21 @@ func GenerateDailyProfits(c *gin.Context) {
 	currentTime := time.Now().In(location)
 	today := currentTime.Format("2006-01-02") // use string format for date comparison
 
-	//check if it already exist
-	var existing models.Profit
-	err := initializers.DB.Where("email = ? AND profit_date = ? AND source = ?", req.Email, today, "new daily profit").First(&existing).Error
-
-	if err == nil { // Profit already exists for today
-		c.JSON(http.StatusOK, gin.H{"received_today": true})
-		return
-	} else if err != gorm.ErrRecordNotFound {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		return
-	}
+	////check if it already exist
+	//var existing models.Profit
+	//err := initializers.DB.Where("email = ? AND profit_date = ? AND source = ?", req.Email, today, "new daily profit").First(&existing).Error
+	//
+	//if err == nil { // Profit already exists for today
+	//	c.JSON(http.StatusOK, gin.H{"received_today": true})
+	//	return
+	//} else if err != gorm.ErrRecordNotFound {
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+	//	return
+	//}
 
 	//check for confirmed deposit and the time it occurred
 	var deposit models.Deposit
-	err = initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
+	err := initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
 		Order("created_at DESC").
 		First(&deposit).Error
 
