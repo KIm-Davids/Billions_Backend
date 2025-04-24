@@ -9,7 +9,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"log"
-	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -748,189 +747,6 @@ var profitRates = map[string]float64{
 //}
 
 func GenerateDailyProfits(c *gin.Context) {
-	//type ProfitRequest struct {
-	//	Email string `json:"email"`
-	//}
-	//
-	//type ProfitResponse struct {
-	//	Email     string  `json:"email"`
-	//	Profit    float64 `json:"profit"`
-	//	NetProfit interface{}
-	//}
-	//
-	//var requestBody ProfitRequest
-	//if err := c.ShouldBindJSON(&requestBody); err != nil {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-	//	return
-	//}
-	//
-	//email := requestBody.Email
-	//location, _ := time.LoadLocation("Africa/Lagos")
-	//currentTime := time.Now().In(location)
-	//
-	//// ✅ Check for existing profit for today
-	//var profitGeneratedToday bool
-	//var existingProfit models.Profit
-	//err := initializers.DB.
-	//	Where("email = ? AND DATE(date) = ?", email, currentTime.Format("2006-01-02")).
-	//	First(&existingProfit).Error
-	//
-	//if err == nil {
-	//	profitGeneratedToday = true // Mark that profit already exists for today
-	//}
-	//
-	//// fetch user deposit
-	//var deposit models.Deposit
-	//if err := initializers.DB.
-	//	Where("email = ? AND status = ?", email, "confirmed"). // Assuming `confirmed` field is a boolean
-	//	Order("created_at DESC").
-	//	First(&deposit).Error; err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch confirmed deposit"})
-	//	return
-	//}
-	//
-	//// ✅ Calculate days since deposit
-	//daysSinceDeposit := math.Max(1, math.Floor(currentTime.Sub(deposit.CreatedAt).Hours()/24))
-	//
-	//// ✅ Determine rate based on package
-	//var rate float64
-	//switch strings.ToLower(deposit.PackageType) {
-	//case "test package":
-	//	rate = 0.008
-	//case "pro package":
-	//	rate = 0.01
-	//case "premium package":
-	//	rate = 0.012
-	//default:
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
-	//	return
-	//}
-	//
-	//// ✅ Calculate profit
-	//profitAmount := deposit.Amount * rate * daysSinceDeposit
-	//if profitAmount <= 0 {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Profit amount must be greater than zero"})
-	//	return
-	//}
-	//
-	//// ✅ Save the profit record
-	//newProfit := models.Profit{
-	//	Email:           deposit.Email,
-	//	Amount:          profitAmount,
-	//	Source:          "daily profit",
-	//	CreatedAt:       currentTime,
-	//	Date:            currentTime,
-	//	NetProfitStatus: "updatedProfit",
-	//}
-	//if err := initializers.DB.Create(&newProfit).Error; err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
-	//	return
-	//}
-	//
-	//// ✅ Check if it's after 6PM in Africa/Lagos
-	//sixPM := time.Date(
-	//	currentTime.Year(), currentTime.Month(), currentTime.Day(),
-	//	18, 0, 0, 0, location,
-	//)
-	//
-	////message = "Profit calculated and returned. Will be added to balance at 6PM."
-	//if currentTime.After(sixPM) {
-	//	var user models.User
-	//	if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
-	//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-	//		return
-	//	}
-	//
-	//	//user.Balance += profitAmount
-	//	user.Profit += profitAmount
-	//
-	//	if err := initializers.DB.Save(&user).Error; err != nil {
-	//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
-	//		return
-	//	}
-	//
-	//	//message = "Profit calculated and added to balance (after 6PM)."
-	//}
-	//
-	//var latestUpdatedProfit models.Profit
-	//
-	//if profitGeneratedToday {
-	//
-	//	if err := initializers.DB.
-	//		Where("email = ? ", email).
-	//		Order("created_at DESC").
-	//		First(&latestUpdatedProfit).Error; err != nil {
-	//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-	//		return
-	//	}
-	//
-	//	if latestUpdatedProfit.Source == "net profit calculation" {
-	//		if err := initializers.DB.
-	//			Where("email = ? AND source = ?", email, "net profit calculation").
-	//			Order("created_at DESC").
-	//			First(&latestUpdatedProfit).Error; err != nil {
-	//			c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
-	//			return
-	//		}
-	//
-	//		var user models.User
-	//		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
-	//			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-	//			return
-	//		}
-	//
-	//		if user.ProfitAddedStatus == "true" {
-	//			user.Balance += latestUpdatedProfit.Amount
-	//			user.ProfitAddedStatus = "true"
-	//			c.JSON(http.StatusConflict, gin.H{"error": "Profit already added to balance"})
-	//			return
-	//		}
-	//
-	//		if err := initializers.DB.Save(&user).Error; err != nil {
-	//			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
-	//			return
-	//		}
-	//
-	//	}
-	//
-	//	if latestUpdatedProfit.Source == "daily profit" {
-	//		if err := initializers.DB.
-	//			Where("email = ? AND source = ?", email, "daily profit").
-	//			Order("created_at DESC").
-	//			First(&latestUpdatedProfit).Error; err != nil {
-	//			c.JSON(http.StatusNotFound, gin.H{"error": "No net profit entry with updatedProfit status found"})
-	//			return
-	//		}
-	//
-	//		var user models.User
-	//		if err := initializers.DB.Where("email = ?", email).First(&user).Error; err != nil {
-	//			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-	//			return
-	//		}
-	//
-	//		if user.ProfitAddedStatus == "true" {
-	//			user.Balance += latestUpdatedProfit.Amount
-	//			user.ProfitAddedStatus = "true"
-	//			c.JSON(http.StatusConflict, gin.H{"error": "Profit already added to balance"})
-	//			return
-	//		}
-	//
-	//		if err := initializers.DB.Save(&user).Error; err != nil {
-	//			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
-	//			return
-	//		}
-	//	}
-	//}
-	//
-	//c.JSON(http.StatusOK, gin.H{
-	//	"message":    "Latest updated profit found",
-	//	"net_profit": latestUpdatedProfit.Amount,
-	//	"entry":      latestUpdatedProfit,
-	//})
-
-	//New Method
-
-	//check to see if the user has not been given profit for the day
 
 	// Request body struct
 	type DepositRequest struct {
@@ -951,21 +767,21 @@ func GenerateDailyProfits(c *gin.Context) {
 	currentTime := time.Now().In(location)
 	today := currentTime.Format("2006-01-02") // use string format for date comparison
 
-	//check if it already exist
-	var existing models.Profit
-	err := initializers.DB.Where("email = ? AND profit_date = ? AND source = ?", req.Email, today, "new daily profit").First(&existing).Error
-
-	if err == nil { // Profit already exists for today
-		c.JSON(http.StatusOK, gin.H{"received_today": true})
-		return
-	} else if err != gorm.ErrRecordNotFound {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		return
-	}
+	////check if it already exist
+	//var existing models.Profit
+	//err := initializers.DB.Where("email = ? AND profit_date = ? AND source = ?", req.Email, today, "new daily profit").First(&existing).Error
+	//
+	//if err == nil { // Profit already exists for today
+	//	c.JSON(http.StatusOK, gin.H{"received_today": true})
+	//	return
+	//} else if err != gorm.ErrRecordNotFound {
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+	//	return
+	//}
 
 	//check for confirmed deposit and the time it occurred
 	var deposit models.Deposit
-	err = initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
+	err := initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
 		Order("created_at DESC").
 		First(&deposit).Error
 
@@ -976,9 +792,6 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	//location, _ = time.LoadLocation("Africa/Lagos")
 	//currentTime = time.Now().In(location)
-
-	// ✅ Calculate days since deposit
-	daysSinceDeposit := math.Max(1, math.Floor(currentTime.Sub(deposit.CreatedAt).Hours()/24))
 
 	// ✅ Determine rate based on package
 	var rate float64
@@ -995,7 +808,7 @@ func GenerateDailyProfits(c *gin.Context) {
 	}
 
 	// ✅ Calculate profit
-	profitAmount := deposit.Amount * rate * daysSinceDeposit
+	profitAmount := deposit.Amount * rate
 	if profitAmount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Profit amount must be greater than zero"})
 		return
