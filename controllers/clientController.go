@@ -591,13 +591,13 @@ func FundReferrerBonus(c *gin.Context) {
 	}
 
 	// Step 4: Ensure only the actual referrer can view their bonus
-	if req.Email != referrer.Email {
-		c.JSON(http.StatusOK, gin.H{
-			"referrer_email": referrer.Email,
-			"total_bonus":    0, // Not allowed to see this bonus
-		})
-		return
-	}
+	//if req.Email != referrer.Email {
+	//	c.JSON(http.StatusOK, gin.H{
+	//		"referrer_email": referrer.Email,
+	//		"total_bonus":    0, // Not allowed to see this bonus
+	//	})
+	//	return
+	//}
 
 	// Step 5: Return referrer's bonus
 	c.JSON(http.StatusOK, gin.H{
