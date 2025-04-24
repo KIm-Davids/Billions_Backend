@@ -560,44 +560,47 @@ func FundReferrerBonus(c *gin.Context) {
 		return
 	}
 
-	// Step 1: Find the referred user
-	var referredUser models.User
-	if err := initializers.DB.Where("email = ?", req.Email).First(&referredUser).Error; err != nil {
+	// Step 1: Find the user making the request
+	var user models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	// Step 2: Fetch the referrer's email using the ReferredBy field
+	// Step 2: Find the referrer based on ReferredBy (this is usually the refer_id)
 	var referrer models.User
-	if err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error; err != nil {
+	if err := initializers.DB.Where("refer_id = ?", user.ReferredBy).First(&referrer).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
 		return
 	}
 
-	if req.Email != referrer.Email {
+	// Optional: Check if there was no actual referrer
+	if referrer.Email == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "You have no referrer"})
+		return
 	}
 
-	// Step 3: Fetch all bonuses processed for this referrer using the referrer's email
+	// Step 3: Fetch the referral bonus from the ReferralBonus table
 	var totalBonus float64
 	if err := initializers.DB.
 		Model(&models.ReferralBonus{}).
-		Where("email = ? AND transaction_processed = ?", req.Email, "true").
+		Where("referrer_id = ? AND transaction_processed = ?", referrer.ReferID, "true").
 		Select("SUM(balance)").
 		Scan(&totalBonus).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bonus data"})
 		return
 	}
 
-	// Step 4: Extra validation to check if the requestor is the referrer
+	// Step 4: Ensure only the actual referrer can view their bonus
 	if req.Email != referrer.Email {
-		// Instead of stopping the flow, return 0 balance with OK status
 		c.JSON(http.StatusOK, gin.H{
 			"referrer_email": referrer.Email,
-			"total_bonus":    0, // No bonus available for non-referrers
+			"total_bonus":    0, // Not allowed to see this bonus
 		})
 		return
 	}
 
+	// Step 5: Return referrer's bonus
 	c.JSON(http.StatusOK, gin.H{
 		"referrer_email": referrer.Email,
 		"total_bonus":    totalBonus,
