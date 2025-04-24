@@ -502,51 +502,52 @@ func ProcessReferralBonus(c *gin.Context) {
 	if err := initializers.DB.
 		Where("referred_id = ? AND transaction_processed = ?", referredUser.ReferID, "true").
 		First(&existingBonus).Error; err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Referral bonus already processed"})
+		c.JSON(http.StatusOK, gin.H{"error": "Referral bonus already processed", "Referrer Bonus": existingBonus.Balance})
 		return
+	} else {
+
+		// Step 4: Get the latest confirmed deposit
+		var deposit models.Deposit
+		if err := initializers.DB.
+			Where("email = ? AND status = ?", req.Email, "confirmed").
+			Order("created_at desc").
+			First(&deposit).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposits found"})
+			return
+		}
+
+		// Step 5: Find the referrer
+		var referrer models.User
+		if err := initializers.DB.Where("referred_by = ?", referredUser.ReferredBy).First(&referrer).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+			return
+		}
+
+		// Step 6: Calculate and log bonus
+		bonus := deposit.Amount * 0.05
+
+		referralBonus := models.ReferralBonus{
+			Email:                referrer.Email, // Now correctly logged under the referrer's email
+			ReferrerID:           referrer.ReferID,
+			ReferredID:           referredUser.ReferID,
+			Amount:               bonus,
+			RewardedAt:           time.Now(),
+			Processed:            "true",
+			TransactionProcessed: "true",
+			CreatedAt:            time.Now(),
+			Balance:              bonus,
+		}
+
+		if err := initializers.DB.Create(&referralBonus).Error; err != nil {
+			log.Println("Failed to create referral bonus:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Logged referral bonus successfully",
+		})
 	}
-
-	// Step 4: Get the latest confirmed deposit
-	var deposit models.Deposit
-	if err := initializers.DB.
-		Where("email = ? AND status = ?", req.Email, "confirmed").
-		Order("created_at desc").
-		First(&deposit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposits found"})
-		return
-	}
-
-	// Step 5: Find the referrer
-	var referrer models.User
-	if err := initializers.DB.Where("referred_by = ?", referredUser.ReferredBy).First(&referrer).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
-		return
-	}
-
-	// Step 6: Calculate and log bonus
-	bonus := deposit.Amount * 0.05
-
-	referralBonus := models.ReferralBonus{
-		Email:                referrer.Email, // Now correctly logged under the referrer's email
-		ReferrerID:           referrer.ReferID,
-		ReferredID:           referredUser.ReferID,
-		Amount:               bonus,
-		RewardedAt:           time.Now(),
-		Processed:            "true",
-		TransactionProcessed: "true",
-		CreatedAt:            time.Now(),
-		Balance:              bonus,
-	}
-
-	if err := initializers.DB.Create(&referralBonus).Error; err != nil {
-		log.Println("Failed to create referral bonus:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Logged referral bonus successfully",
-	})
 }
 
 func FundReferrerBonus(c *gin.Context) {
