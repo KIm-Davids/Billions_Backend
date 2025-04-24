@@ -781,7 +781,7 @@ func GenerateDailyProfits(c *gin.Context) {
 
 	//check for confirmed deposit and the time it occurred
 	var deposit models.Deposit
-	err := initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
+	err = initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
 		Order("created_at DESC").
 		First(&deposit).Error
 
