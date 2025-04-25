@@ -256,6 +256,7 @@ func ConfirmDeposit(c *gin.Context) {
 
 	// Update the deposit status
 	deposit.Status = "confirmed"
+	deposit.PackageType = "Pro package"
 	if err := tx.Save(&deposit).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update deposit status"})
