@@ -5,15 +5,14 @@ import "gorm.io/gorm"
 type User struct {
 	gorm.Model
 	//UserID   uint
-	Username          string  `json:"username"`
-	Email             string  `json:"email" gorm:"unique"`
-	Password          string  `json:"password"`
-	ReferID           string  `json:"referrerId" gorm:"unique"`
-	ReferredBy        string  `json:"referred_by"` // referrer's ID (not unique)
-	Balance           float64 `json:"balance"`
-	Package           string  `json:"package,omitempty" gorm:"column:package"`
-	Profit            float64 `gorm:"default:0"`
-	ProfitAddedStatus string  `gorm:"not null"`
-	ReferralsCount    int     // Number of referrals the user has made
+	Username       string  `json:"username"`
+	Email          string  `json:"email" gorm:"unique"`
+	Password       string  `json:"password"`
+	ReferID        string  `json:"referrerId" gorm:"unique"`
+	ReferredBy     string  `json:"referred_by"` // referrer's ID (not unique)
+	Balance        float64 `json:"balance"`
+	Package        string  `json:"package,omitempty" gorm:"column:package"`
+	Profit         float64 `gorm:"default:0"`
+	ReferralsCount int     // Number of referrals the user has made
 
 }
