@@ -14,68 +14,6 @@ import (
 	"time"
 )
 
-//func CreateClient(c *gin.Context) {
-//	var req struct {
-//		Username string `json:"username"`
-//		Email    string `json:"email"`
-//		Password string `json:"password"`
-//	}
-//
-//	if err := c.ShouldBindJSON(&req); err != nil {
-//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-//		return
-//	}
-//
-//	// Hash the password
-//	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-//	if err != nil {
-//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
-//		return
-//	}
-//
-//	//address, err := utils.GenerateAddress(10)
-//	if err != nil {
-//		log.Fatal("Error generating address:", err)
-//	}
-//	// Create the client
-//	user := models.User{
-//		Username: req.Username,
-//		Email:    req.Email,
-//		Password: string(hashedPassword),
-//	}
-//
-//	if err := initializers.DB.Create(&user).Error; err != nil {
-//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
-//		return
-//	}
-//
-//	ref, err := utils.GenerateAddress(5)
-//	if err != nil {
-//		log.Fatal("Error generating address:", err)
-//	}
-//	// Create the client profile
-//	client := models.User{
-//		UserID:     user.ID,
-//		ReferrerID: ref,
-//		Balance:    0.00,
-//	}
-//
-//	if err := initializers.DB.Create(&client).Error; err != nil {
-//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create client profile"})
-//		return
-//	}
-//
-//	if err := initializers.DB.Preload("User").First(&client, client.ID).Error; err != nil {
-//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load client with user info"})
-//		return
-//	}
-//
-//	c.JSON(http.StatusCreated, gin.H{
-//		"message": "Client created successfully",
-//		"Client":  client,
-//	})
-//}
-
 func CreateClient(c *gin.Context) {
 	var req struct {
 		Username   string `json:"username"`
@@ -217,7 +155,7 @@ func Deposit(c *gin.Context) {
 		user.Balance += input.Amount
 
 		// Update the user's package field based on the deposit package type
-		user.Package = input.PackageType // Set the user's package to the package type of this deposit
+		user.Package = "Pro package" // Set the user's package to the package type of this deposit
 
 		if err := initializers.DB.Save(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
