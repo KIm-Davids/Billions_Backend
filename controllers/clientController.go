@@ -3,6 +3,7 @@ package controllers
 import (
 	"JWTProject/initializers"
 	"JWTProject/models"
+	"JWTProject/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -123,24 +124,24 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
-	// Generate unique referral ID
-	//var referID string
-	//for {
-	//	temp, _ := utils.GenerateAddress(6)
-	//	var count int64
-	//	initializers.DB.Model(&models.User{}).Where("refer_id = ?", temp).Count(&count)
-	//	if count == 0 {
-	//		referID = temp
-	//		break
-	//	}
-	//}
+	//Generate unique referral ID
+	var referID string
+	for {
+		temp, _ := utils.GenerateUniqueReferralID(6)
+		var count int64
+		initializers.DB.Model(&models.User{}).Where("refer_id = ?", temp).Count(&count)
+		if count == 0 {
+			referID = temp
+			break
+		}
+	}
 
 	// Create user
 	user := models.User{
-		Username: req.Username,
-		Email:    req.Email,
-		Password: string(hashedPassword),
-		//ReferID:    referID,
+		Username:   req.Username,
+		Email:      req.Email,
+		Password:   string(hashedPassword),
+		ReferID:    referID,
 		ReferredBy: referrerID,
 		Balance:    0.0,
 	}
