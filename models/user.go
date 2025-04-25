@@ -11,7 +11,7 @@ type User struct {
 	ReferID           string  `json:"referrerId" gorm:"unique"`
 	ReferredBy        string  `json:"referred_by"` // referrer's ID (not unique)
 	Balance           float64 `json:"balance"`
-	Package           string  `json:"package,omitempty"`
+	Package           string  json:"package,omitempty" gorm:"column:package"
 	Profit            float64 `gorm:"default:0"`
 	ProfitAddedStatus string  `gorm:"not null"`
 	ReferralsCount    int     // Number of referrals the user has made
