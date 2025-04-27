@@ -27,7 +27,7 @@ func GenerateUniqueReferralID(length int) (string, error) {
 
 		// Check for duplicate in DB
 		var count int64
-		err := initializers.DB.Model(&models.User{}).Where("referral_id = ?", id).Count(&count).Error
+		err := initializers.DB.Model(&models.User{}).Where("refer_id = ?", id).Count(&count).Error
 		if err != nil {
 			return "", err
 		}

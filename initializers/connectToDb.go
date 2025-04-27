@@ -5,14 +5,15 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"log"
-	"os"
 )
 
 var DB *gorm.DB
 
 func ConnectToDb() {
 	var err error
-	dsn := os.Getenv("DATABASE_URL")
+	//dsn := os.Getenv("DATABASE_URL")
+	dsn := "root:password@tcp(localhost:3306)/billions_database?parseTime=true"
+
 	database, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
 	if err != nil {

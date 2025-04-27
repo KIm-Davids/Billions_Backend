@@ -14,7 +14,7 @@ type Withdraw struct {
 	CreatedAt       time.Time `json:"-"`
 	Description     string    `json:"description"`
 	Source          string
-	ProfitType      string `json:"profitType"`
-	PackageType     string `json:"packageType"`
+	//ProfitType      string `json:"profitType"`
+	//PackageType     string `json:"packageType"`
 	//WithdrawDate
 }

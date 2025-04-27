@@ -17,48 +17,12 @@ func init() {
 	initializers.SyncDatabase()
 }
 
-//// Transaction struct matches the table schema
-//type Transaction struct {
-//	UserID        uint      `json:"user_id"`
-//	SenderName    string    `json:"senderName"`
-//	SenderAddress string    `json:"senderAddress"`
-//	Type          string    `json:"transactionType"`
-//	Status        string    `json:"status"`
-//	PackageType   string    `json:"packageType"`
-//	Amount        float64   `json:"amount"`
-//	Description   string    `json:"description"`
-//	CreatedAt     time.Time `json:"created_at"`
-//}
-//
-//func createTableIfNotExists(db *sql.DB) {
-//	// SQL query to create the table based on the Transaction struct
-//	createTableQuery := `
-//	CREATE TABLE IF NOT EXISTS transactions (
-//		id INT AUTO_INCREMENT PRIMARY KEY,
-//		user_id INT NOT NULL,
-//		sender_name VARCHAR(255) NOT NULL,
-//		sender_address VARCHAR(255) NOT NULL,
-//		transaction_type VARCHAR(100) NOT NULL,
-//		status VARCHAR(50) NOT NULL,
-//		package_type VARCHAR(100) NOT NULL,
-//		amount DECIMAL(10,2) NOT NULL,
-//		description TEXT,
-//		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//	);`
-//
-//	// Execute the query
-//	_, err := db.Exec(createTableQuery)
-//	if err != nil {
-//		log.Fatalf("Error creating table: %v", err)
-//	} else {
-//		fmt.Println("Table checked/created successfully")
-//	}
-//}
-
 func main() {
 
 	// Online MySQL connection string (replace with your actual credentials)
-	dsn := "root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
+	//dsn := "root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
+
+	dsn := "root:password@tcp(localhost:3306)/billions_database?parseTime=true"
 
 	// Connect to the MySQL database
 	db, err := sql.Open("mysql", dsn)
@@ -73,8 +37,8 @@ func main() {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"https://www.billionsforextrade.vip", "https://www.billionsforextrade.vip/"},
-		//AllowOrigins:     []string{"http://localhost:3000"},
+		//AllowOrigins: []string{"https://www.billionsforextrade.vip", "https://www.billionsforextrade.vip/"},
+		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -110,7 +74,7 @@ func main() {
 	router.POST("/getReferrerCode", controllers.GetReferralCode)
 	router.POST("/getNetProfit", controllers.GetDailyProfit)
 	router.POST("/getReferBonus", controllers.ProcessReferralBonus)
-	router.POST("/fundReferrer", controllers.FundReferrerBonus)
+	router.POST("/fundReferrer", controllers.ReferBonus)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -141,6 +105,9 @@ func main() {
 	//select {} // keep the program running
 
 }
+
+//SECRETE=ryuye84yr294y746234692734
+//DATABASE_URL="root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
 
 //func main() {
 //	router := gin.Default()

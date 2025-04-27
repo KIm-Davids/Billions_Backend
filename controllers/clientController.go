@@ -4,6 +4,7 @@ import (
 	"JWTProject/initializers"
 	"JWTProject/models"
 	"JWTProject/utils"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -203,7 +204,7 @@ func WithdrawFromProfits(c *gin.Context) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"message":  "Transaction logged successfully",
-			"withdraw": input,
+			"withdraw": input.Amount,
 		})
 		return
 	}
@@ -297,12 +298,11 @@ func WithdrawProfitsCtx(c *gin.Context) {
 
 		newProfitRecord := models.Profit{
 			Email:           existingWithdrawal.Email,
-			Amount:          0, // or whatever logic you use when it's just an update/deduction
-			NewProfit:       -existingWithdrawal.Amount,
-			Source:          "new daily profit",
+			Source:          "daily profit",
 			NetProfitStatus: "deducted", // or whatever status makes sense in your context
 			CreatedAt:       time.Now(),
 			Date:            time.Now(), // or the original profit date if applicable
+			NewProfit:       -existingWithdrawal.Amount,
 		}
 		if err := initializers.DB.Create(&newProfitRecord).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save updated net profit"})
@@ -316,10 +316,24 @@ func WithdrawProfitsCtx(c *gin.Context) {
 			return
 		}
 
+		//var profit models.Profit
+		//err := initializers.DB.Where("email = ? AND source = ?", input.Email, "daily profit").
+		//	Order("created_at DESC").
+		//	First(&profit).Error
+		//
+		//if err != nil {
+		//	if err == gorm.ErrRecordNotFound {
+		//		c.JSON(http.StatusOK, gin.H{"new_profit": 0}) // No profit found
+		//		return
+		//	}
+		//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		//	return
+		//}
+
 		// Respond with success
 		c.JSON(http.StatusOK, gin.H{
-			"message":    "Profit withdrawal confirmed and processed",
-			"withdrawal": newProfitRecord.NewProfit,
+			"message": "Profit withdrawal confirmed and processed",
+			//"withdrawal": netProfit,
 		})
 		return
 
@@ -420,7 +434,8 @@ func WithdrawFromBalance(c *gin.Context) {
 
 func ProcessReferralBonus(c *gin.Context) {
 	var req struct {
-		Email string `json:"email"` // This should be the referred user's email
+		Email      string `json:"email"` // This should be the referred user's email
+		ReferrerId string `json:"referrerId"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -431,18 +446,25 @@ func ProcessReferralBonus(c *gin.Context) {
 	// Step 1: Find the referred user
 	var referredUser models.User
 	if err := initializers.DB.Where("email = ?", req.Email).First(&referredUser).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found here"})
 		return
 	}
 
 	// Step 3: Check if referral bonus was already given and processed
 	var existingBonus models.ReferralBonus
+	var referBonus float64
 	if err := initializers.DB.
-		Where("referred_id = ? AND transaction_processed = ?", referredUser.ReferID, "true").
+		Where("email = ? AND referrer_id = ? ", req.Email, req.ReferrerId).
 		First(&existingBonus).Error; err == nil {
-		c.JSON(http.StatusOK, gin.H{"error": "Referral bonus already processed", "Referrer Bonus": existingBonus.Balance})
+
+	}
+
+	if existingBonus.TransactionProcessed == "true" {
+		referBonus += existingBonus.Balance
+		c.JSON(http.StatusOK, gin.H{"error": "Referral bonus already processed", "Referrer_Bonus": referBonus})
 		return
-	} else {
+	}
+	if existingBonus.TransactionProcessed == "" {
 
 		// Step 4: Get the latest confirmed deposit
 		var deposit models.Deposit
@@ -458,6 +480,13 @@ func ProcessReferralBonus(c *gin.Context) {
 		var referrer models.User
 		if err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+			return
+		}
+
+		err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			// Only return if it's a real database error
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Referrer not found"})
 			return
 		}
 
@@ -488,61 +517,121 @@ func ProcessReferralBonus(c *gin.Context) {
 	}
 }
 
-func FundReferrerBonus(c *gin.Context) {
-	var req struct {
-		Email string `json:"email"`
+//func FundReferrerBonus(c *gin.Context) {
+//	var req struct {
+//		ReferralId string `json:"referralId"`
+//	}
+//
+//	if err := c.ShouldBindJSON(&req); err != nil {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+//		return
+//	}
+//
+//	// Step 1: Find the user making the request
+//	var user models.User
+//	if err := initializers.DB.Where("refer_id = ?", req.ReferralId).First(&user).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+//		return
+//	}
+//
+//	//var referrer models.User
+//
+//	// Step 2: Find the referrer based on ReferredBy (this is usually the refer_id)
+//	//err := initializers.DB.Where("referrer_id = ?", user.ReferID).First(&referrer).Error
+//	//if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+//	//	// Only return if it's a real database error
+//	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while checking referrer"})
+//	//	return
+//	//}
+//
+//	// Optional: Check if there was no actual referrer
+//	//if referrer.Email == "" {
+//	//	c.JSON(http.StatusNotFound, gin.H{"error": "You have no referrer"})
+//	//	return
+//	//}
+//
+//	// Step 3: Fetch the referral bonus from the ReferralBonus table
+//	var totalBonus float64
+//	if err := initializers.DB.
+//		Model(&models.ReferralBonus{}).
+//		Where("referrer_id = ? AND transaction_processed = ?", req.ReferralId, "true").
+//		Select("SUM(balance)").
+//		Scan(&totalBonus).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bonus data"})
+//		return
+//	}
+//
+//	// Step 4: Ensure only the actual referrer can view their bonus
+//	//if req.Email != referrer.Email {
+//	//	c.JSON(http.StatusOK, gin.H{
+//	//		"referrer_email": referrer.Email,
+//	//		"total_bonus":    0, // Not allowed to see this bonus
+//	//	})
+//	//	return
+//	//}
+//
+//	// Step 5: Return referrer's bonus
+//	c.JSON(http.StatusOK, gin.H{
+//		//"referrer_email": referrer.Email,
+//		"total_bonus": totalBonus,
+//	})
+//}
+
+func ReferBonus(c *gin.Context) {
+	type ReferIDRequest struct {
+		Email   string `json:"email"`
+		ReferID string `json:"referrerId" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+	var request ReferIDRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Refer ID is required"})
 		return
 	}
 
-	// Step 1: Find the user making the request
 	var user models.User
-	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	if err := initializers.DB.Where("email = ?", request.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	// Step 2: Find the referrer based on ReferredBy (this is usually the refer_id)
-	var referrer models.User
-	if err := initializers.DB.Where("refer_id = ?", user.ReferredBy).First(&referrer).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+	if user.ReferredBy == "" {
+		// Check if this user is a referrer (meaning others used their ReferID)
+		var count int64
+		if err := initializers.DB.Model(&models.User{}).
+			Where("referred_by = ?", user.ReferID).
+			Count(&count).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			return
+		}
+
+		if count == 0 {
+			// Nobody referred by this user -> truly no referrer activity
+			c.JSON(http.StatusNotFound, gin.H{"message": "User has no referrer or referrals"})
+			return
+		} else {
+
+		}
+
+		var totalBonus float64
+		if err := initializers.DB.Model(&models.ReferralBonus{}).
+			Where("referrer_id = ? AND transaction_processed = ?", user.ReferID, "true").
+			Select("COALESCE(SUM(balance), 0)").Scan(&totalBonus).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate total referral bonus"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"referrer_id": user.ReferID,
+			"total_bonus": totalBonus,
+		})
 		return
+
 	}
 
-	// Optional: Check if there was no actual referrer
-	if referrer.Email == "" {
-		c.JSON(http.StatusNotFound, gin.H{"error": "You have no referrer"})
-		return
-	}
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "Referral Bonus is processing"})
 
-	// Step 3: Fetch the referral bonus from the ReferralBonus table
-	var totalBonus float64
-	if err := initializers.DB.
-		Model(&models.ReferralBonus{}).
-		Where("email = ? AND transaction_processed = ?", user.Email, "true").
-		Select("SUM(balance)").
-		Scan(&totalBonus).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bonus data"})
-		return
-	}
-
-	// Step 4: Ensure only the actual referrer can view their bonus
-	//if req.Email != referrer.Email {
-	//	c.JSON(http.StatusOK, gin.H{
-	//		"referrer_email": referrer.Email,
-	//		"total_bonus":    0, // Not allowed to see this bonus
-	//	})
-	//	return
-	//}
-
-	// Step 5: Return referrer's bonus
-	c.JSON(http.StatusOK, gin.H{
-		"referrer_email": referrer.Email,
-		"total_bonus":    totalBonus,
-	})
 }
 
 func GenerateDailyProfits(c *gin.Context) {
@@ -573,61 +662,66 @@ func GenerateDailyProfits(c *gin.Context) {
 	if err == nil { // Profit already exists for today
 		c.JSON(http.StatusOK, gin.H{"received_today": true})
 		return
-	} else if err != gorm.ErrRecordNotFound {
+	} else {
+		// Check user's balance instead of deposit
+		var user models.User
+		err := initializers.DB.Where("email = ?", req.Email).First(&user).Error
+
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+
+		// Check if balance is valid
+		if user.Balance <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "User has no balance for profit generation"})
+			return
+		}
+
+		// ✅ Determine rate based on package
+		//var rate float64
+		//switch strings.ToLower(deposit.PackageType) {
+		//case "test package":
+		//	rate = 0.008
+		//case "pro package":
+		//	rate = 0.01
+		//case "premium package":
+		//	rate = 0.012
+		//default:
+		//	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
+		//	return
+		//}
+
+		// ✅ Calculate profit
+		profitAmount := user.Balance * 0.01
+		if profitAmount <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Profit amount must be greater than zero"})
+			return
+		}
+
+		// ✅ Save the profit record
+		newProfit := models.Profit{
+			Email: user.Email,
+			//Amount:          profitAmount,
+			Source:          "new daily profit",
+			CreatedAt:       currentTime,
+			Date:            currentTime,
+			ProfitDate:      today, // this is key!
+			NetProfitStatus: "profit updated",
+			NewProfit:       profitAmount,
+		}
+		if err := initializers.DB.Create(&newProfit).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
+			return
+		}
+	}
+
+	if err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
+	c.JSON(http.StatusOK, gin.H{"message": "Daily profit processing..."})
 
-	//check for confirmed deposit and the time it occurred
-	var deposit models.Deposit
-	err = initializers.DB.Where("email = ? AND status = ?", req.Email, "confirmed").
-		Order("created_at DESC").
-		First(&deposit).Error
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Deposit not found"})
-		return
-	}
-
-	//location, _ = time.LoadLocation("Africa/Lagos")
-	//currentTime = time.Now().In(location)
-
-	// ✅ Determine rate based on package
-	var rate float64
-	switch strings.ToLower(deposit.PackageType) {
-	case "test package":
-		rate = 0.008
-	case "pro package":
-		rate = 0.01
-	case "premium package":
-		rate = 0.012
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid package type"})
-		return
-	}
-
-	// ✅ Calculate profit
-	profitAmount := deposit.Amount * rate
-	if profitAmount <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Profit amount must be greater than zero"})
-		return
-	}
-
-	// ✅ Save the profit record
-	newProfit := models.Profit{
-		Email: deposit.Email,
-		//Amount:          profitAmount,
-		Source:          "new daily profit",
-		CreatedAt:       currentTime,
-		Date:            currentTime,
-		ProfitDate:      today, // this is key!
-		NetProfitStatus: "profit updated",
-		NewProfit:       profitAmount,
-	}
-	if err := initializers.DB.Create(&newProfit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
-		return
-	}
 }
 
 func GetReferralCode(c *gin.Context) {
@@ -691,12 +785,12 @@ func GetUserWithdrawals(c *gin.Context) {
 	var withdrawResponse []WithdrawResponse
 	for _, withdrawal := range withdrawals {
 		withdrawResponse = append(withdrawResponse, WithdrawResponse{
-			Email:           withdrawal.Email,
-			Amount:          withdrawal.Amount,
-			Status:          withdrawal.Status,
-			CreatedAt:       withdrawal.CreatedAt.Format("2006-01-02 15:04:05"),
-			Description:     withdrawal.Description,
-			ProfitType:      withdrawal.ProfitType,
+			Email:       withdrawal.Email,
+			Amount:      withdrawal.Amount,
+			Status:      withdrawal.Status,
+			CreatedAt:   withdrawal.CreatedAt.Format("2006-01-02 15:04:05"),
+			Description: withdrawal.Description,
+			//ProfitType:      withdrawal.ProfitType,
 			WalletType:      withdrawal.WalletType,
 			WithdrawAddress: withdrawal.WithdrawAddress,
 			WithdrawId:      withdrawal.WithdrawID,
@@ -711,7 +805,8 @@ func GetUserWithdrawals(c *gin.Context) {
 
 func GetDailyProfit(c *gin.Context) {
 	var req struct {
-		Email string `json:"email"` // Email of the user whose daily profit is to be fetched
+		Email  string  `json:"email"`
+		Amount float64 `json:"withdrawAmount"` // Email of the user whose daily profit is to be fetched
 	}
 
 	// Bind JSON body to struct
@@ -723,16 +818,19 @@ func GetDailyProfit(c *gin.Context) {
 	// Fetch the user's daily profit from the profit table based on their email and source = "new daily profit"
 	var totalDailyProfit float64
 	if err := initializers.DB.Model(&models.Profit{}).
-		Where("email = ? AND source = ?", req.Email, "new daily profit").
+		Where("email = ?", req.Email).
 		Select("SUM(new_profit)").Scan(&totalDailyProfit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate daily profit"})
 		return
 	}
 
+	var netProfit float64
+	netProfit -= totalDailyProfit - req.Amount
+
 	// Return the total daily profit of the user
 	c.JSON(http.StatusOK, gin.H{
 		"email":        req.Email,
-		"daily_profit": totalDailyProfit,
+		"daily_profit": netProfit,
 	})
 	return
 }
