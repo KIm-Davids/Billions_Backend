@@ -819,7 +819,8 @@ func GetDailyProfit(c *gin.Context) {
 	var totalDailyProfit float64
 	if err := initializers.DB.Model(&models.Profit{}).
 		Where("email = ?", req.Email).
-		Select("SUM(new_profit)").Scan(&totalDailyProfit).Error; err != nil {
+		Select("COALESCE(SUM(new_profit), 0)"). // 👈 here: use COALESCE
+		Scan(&totalDailyProfit).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate daily profit"})
 		return
 	}
