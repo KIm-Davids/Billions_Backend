@@ -75,6 +75,12 @@ func main() {
 	router.POST("/getNetProfit", controllers.GetDailyProfit)
 	router.POST("/getReferBonus", controllers.ProcessReferralBonus)
 	router.POST("/fundReferrer", controllers.ReferBonus)
+	router.POST("/saveWithdrawnAmount", controllers.SaveWithdrawAmount)
+	router.POST("/processReferBonusWithdrawal", controllers.ProcessReferralWithdrawal)
+	router.POST("/withdrawReferBonus", controllers.WithdrawReferralBonus)
+	router.POST("/confirmReferWithdrawal", controllers.ConfirmReferralWithdrawal)
+	router.POST("/rejectReferWithdrawal", controllers.RejectReferralWithdrawal)
+	router.GET("/fetchReferWithdrawal", controllers.FetchPendingReferralBonus)
 
 	port := os.Getenv("PORT")
 	if port == "" {

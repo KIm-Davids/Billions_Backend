@@ -11,7 +11,7 @@ type Withdraw struct {
 	Status          string    `json:"status"`
 	WalletType      string    `json:"walletType"`
 	Amount          float64   `json:"amount"`
-	CreatedAt       time.Time `json:"-"`
+	CreatedAt       time.Time `json:"createdAt"`
 	Description     string    `json:"description"`
 	Source          string
 	//ProfitType      string `json:"profitType"`

@@ -493,57 +493,6 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 		return
 	}
 
-	//// Fetch total profit outside the transaction (no locking needed here)
-	//var totalProfit float64
-	//if err := initializers.DB.Model(&models.Profit{}).
-	//	Where("email = ?", req.Email).
-	//	Select("SUM(new_profit)").Scan(&totalProfit).Error; err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch total profit"})
-	//	return
-	//}
-	//
-	//if totalProfit < withdrawal.Amount {
-	//	tx.Rollback()
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Insufficient profit balance"})
-	//	return
-	//}
-	//
-	//netProfit := totalProfit - withdrawal.Amount
-	//
-	//// Log withdrawal deduction inside the transaction
-	//deduction := models.Profit{
-	//	Email:     req.Email,
-	//	Amount:    netProfit,
-	//	Source:    "net profit calculation",
-	//	CreatedAt: time.Now(),
-	//	Date:      time.Now(),
-	//	//NewProfit: netProfit,
-	//}
-	//
-	//if err := tx.Create(&deduction).Error; err != nil {
-	//	tx.Rollback()
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log withdrawal deduction"})
-	//	return
-	//}
-	//
-	//// Calculate the net profit after deduction
-	//
-	//// Save the net profit back to the Profit table inside the transaction
-	//netProfitEntry := models.Profit{
-	//	Email: req.Email,
-	//	//Amount:    netProfit,
-	//	Source:    "net profit calculation",
-	//	Date:      time.Now(),
-	//	CreatedAt: time.Now(),
-	//	NewProfit: netProfit,
-	//}
-	//
-	//if err := tx.Create(&netProfitEntry).Error; err != nil {
-	//	tx.Rollback()
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save net profit"})
-	//	return
-	//}
-
 	// Commit the transaction
 	tx.Commit()
 
@@ -556,19 +505,6 @@ func ConfirmWithdrawProfit(c *gin.Context) {
 
 	//c.JSON(http.StatusOK, gin.H{"message": "Withdrawal confirmed and deducted from profits",})
 }
-
-//func GetProfitBalance(c *gin.Context) {
-//	type RequestBody struct {
-//		Email string `json:"email"`
-//	}
-//
-//	var req RequestBody
-//	if err := c.ShouldBindJSON(&req); err != nil {
-//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-//		return
-//	}
-//
-//}
 
 func RejectWithdraw(c *gin.Context) {
 	type RejectRequest struct {
@@ -597,4 +533,72 @@ func RejectWithdraw(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Withdrawal rejected successfully"})
+}
+
+func ConfirmReferralWithdrawal(c *gin.Context) {
+	var req struct {
+		Email      string `json:"email"`
+		WithdrawID uint   `json:"withdrawId"` // Withdraw ID to target specific withdrawal
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Update the specific pending referral withdrawal
+	if err := initializers.DB.Model(&models.Withdraw{}).
+		Where("withdraw_id = ? AND email = ? AND status = ? AND source = ?", req.WithdrawID, req.Email, "pending", "referral").
+		Update("status", "confirmed").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to confirm referral withdrawal"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Referral withdrawal confirmed successfully!"})
+}
+
+func RejectReferralWithdrawal(c *gin.Context) {
+	var req struct {
+		Email      string `json:"email"`
+		WithdrawID uint   `json:"withdrawId"` // Withdraw ID to target specific withdrawal
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Update the specific pending referral withdrawal
+	if err := initializers.DB.Model(&models.Withdraw{}).
+		Where("withdraw_id = ? AND email = ? AND status = ? AND source = ?", req.WithdrawID, req.Email, "pending", "referral").
+		Update("status", "rejected").Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update referral withdrawal status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Referral withdrawal status rejected successfully!"})
+}
+
+func FetchPendingReferralBonus(c *gin.Context) {
+	// Declare a slice to store the pending withdrawals with source "referral"
+	var pendingWithdrawals []models.Withdraw
+
+	// Query the Withdraw table for all pending withdrawals where source = "referral"
+	if err := initializers.DB.Model(&models.Withdraw{}).
+		Where("source = ?", "referral").
+		Find(&pendingWithdrawals).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch pending referral withdrawals"})
+		return
+	}
+
+	// If no pending withdrawals found
+	if len(pendingWithdrawals) == 0 {
+		c.JSON(http.StatusOK, gin.H{"message": "No pending referral withdrawals found"})
+		return
+	}
+
+	// Respond with the list of pending withdrawals
+	c.JSON(http.StatusOK, gin.H{
+		"pending_withdrawals": pendingWithdrawals,
+	})
 }
