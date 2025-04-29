@@ -500,6 +500,20 @@ func ProcessReferralBonus(c *gin.Context) {
 		return
 	}
 
+	err = initializers.DB.Model(&models.ReferralBonus{}).
+		Where("referrer_id = ? AND referred_id = ? AND transaction_processed = ?", referredUser.ReferredBy, referredUser.ReferID, "true").
+		Count(&count).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	if count > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Referral bonus already processed for this user"})
+		return
+	}
+
 	// Step 6: Calculate and log bonus
 	bonus := deposit.Amount * 0.05
 
