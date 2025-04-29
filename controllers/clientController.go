@@ -605,39 +605,34 @@ func ReferBonus(c *gin.Context) {
 		return
 	}
 
-	if user.ReferredBy == "" {
-		// Check if this user is a referrer (meaning others used their ReferID)
-		var count int64
-		if err := initializers.DB.Model(&models.User{}).
-			Where("referred_by = ?", user.ReferID).
-			Count(&count).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-			return
-		}
-
-		if count == 0 {
-			// Nobody referred by this user -> truly no referrer activity
-			c.JSON(http.StatusNotFound, gin.H{"message": "User has no referrer or referrals"})
-			return
-		}
-
-		var totalBonus float64
-		if err := initializers.DB.Model(&models.ReferralBonus{}).
-			Where("referrer_id = ? AND transaction_processed = ?", user.ReferID, "true").
-			Select("COALESCE(SUM(balance), 0)").Scan(&totalBonus).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate total referral bonus"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"referrer_id": user.ReferID,
-			"total_bonus": totalBonus,
-		})
+	// Check if this user is a referrer (meaning others used their ReferID)
+	var count int64
+	if err := initializers.DB.Model(&models.User{}).
+		Where("referred_by = ?", user.ReferID).
+		Count(&count).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
 
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "Referral Bonus is processing"})
+	if count == 0 {
+		// Nobody referred by this user -> truly no referrer activity
+		c.JSON(http.StatusNotFound, gin.H{"message": "User has no referrer or referrals"})
+		return
+	}
 
+	var totalBonus float64
+	if err := initializers.DB.Model(&models.ReferralBonus{}).
+		Where("referrer_id = ? AND transaction_processed = ?", user.ReferID, "true").
+		Select("COALESCE(SUM(balance), 0)").Scan(&totalBonus).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate total referral bonus"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"referrer_id": user.ReferID,
+		"total_bonus": totalBonus,
+	})
+	return
 }
 
 func GenerateDailyProfits(c *gin.Context) {
