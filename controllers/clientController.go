@@ -494,8 +494,8 @@ func ProcessReferralBonus(c *gin.Context) {
 	// Step 5: Find the referrer
 	var referrer models.User
 	if err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
-		return
+		//c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+		//return
 	}
 
 	err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error
