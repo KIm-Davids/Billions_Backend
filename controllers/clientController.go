@@ -501,7 +501,7 @@ func ProcessReferralBonus(c *gin.Context) {
 	}
 
 	err = initializers.DB.Model(&models.ReferralBonus{}).
-		Where("referrer_id = ? AND referred_id = ? AND transaction_processed = ?", referredUser.ReferredBy, referredUser.ReferID, "true").
+		Where("referrer_id = ? AND referred_id = ? AND transaction_processed = ?", referredUser.ReferredBy, referredUser.ReferID, "withdrawn").
 		Count(&count).Error
 
 	if err != nil {
