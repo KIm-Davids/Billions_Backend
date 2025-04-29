@@ -20,9 +20,9 @@ func init() {
 func main() {
 
 	//Online MySQL connection string (replace with your actual credentials)
-	//dsn := "root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
 
-	dsn := "root:password@tcp(localhost:3306)/billions_database?parseTime=true"
+	//dsn := "root:password@tcp(localhost:3306)/billions_database?parseTime=true"
 
 	// Connect to the MySQL database
 	db, err := sql.Open("mysql", dsn)
@@ -115,9 +115,11 @@ func main() {
 //
 //
 
-//PORT=8080
-//SECRETE=ryuye84yr294y746234692734
-//DATABASE_URL="root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
+//DB_USER=root
+//DB_PASSWORD=password
+//DB_HOST=127.0.0.1
+//DB_PORT=3306
+//DB_NAME=billions_database
 
 //func main() {
 //	router := gin.Default()
