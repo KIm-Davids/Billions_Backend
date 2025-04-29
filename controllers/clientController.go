@@ -619,22 +619,21 @@ func ReferBonus(c *gin.Context) {
 			// Nobody referred by this user -> truly no referrer activity
 			c.JSON(http.StatusNotFound, gin.H{"message": "User has no referrer or referrals"})
 			return
-		} else {
+		}
 
-			var totalBonus float64
-			if err := initializers.DB.Model(&models.ReferralBonus{}).
-				Where("referrer_id = ? AND transaction_processed = ?", user.ReferID, "true").
-				Select("COALESCE(SUM(balance), 0)").Scan(&totalBonus).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate total referral bonus"})
-				return
-			}
-
-			c.JSON(http.StatusOK, gin.H{
-				"referrer_id": user.ReferID,
-				"total_bonus": totalBonus,
-			})
+		var totalBonus float64
+		if err := initializers.DB.Model(&models.ReferralBonus{}).
+			Where("referrer_id = ? AND transaction_processed = ?", user.ReferID, "true").
+			Select("COALESCE(SUM(balance), 0)").Scan(&totalBonus).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate total referral bonus"})
 			return
 		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"referrer_id": user.ReferID,
+			"total_bonus": totalBonus,
+		})
+		return
 	}
 
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Referral Bonus is processing"})
