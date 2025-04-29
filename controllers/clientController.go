@@ -471,7 +471,7 @@ func ProcessReferralBonus(c *gin.Context) {
 		Where("referrer_id = ? AND referred_id = ?", referredUser.ReferredBy, referredUser.ReferID).
 		Count(&count)
 
-	if count > 0 {
+	if count >= 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Referral bonus already processed for this user"})
 		return
 	}
