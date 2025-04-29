@@ -487,7 +487,7 @@ func ProcessReferralBonus(c *gin.Context) {
 		Where("email = ? AND status = ?", req.Email, "confirmed").
 		Order("created_at desc").
 		First(&deposit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposits found"})
+		c.JSON(http.StatusOK, gin.H{"error": "No confirmed deposits found"})
 		return
 	}
 
