@@ -465,6 +465,11 @@ func ProcessReferralBonus(c *gin.Context) {
 		return
 	}
 
+	if existingBonus.TransactionProcessed == "withdrawn" {
+		c.JSON(http.StatusConflict, gin.H{"message": "Already withdrawn referral bonus"})
+		return
+	}
+
 	// Check if a bonus ALREADY exists for this referrer + referred user
 	var count int64
 	initializers.DB.Model(&models.ReferralBonus{}).
@@ -499,20 +504,6 @@ func ProcessReferralBonus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Referrer not found"})
 		return
 	}
-
-	//err = initializers.DB.Model(&models.ReferralBonus{}).
-	//	Where("referrer_id = ? AND referred_id = ? AND transaction_processed = ?", referredUser.ReferredBy, referredUser.ReferID, "withdrawn").
-	//	Count(&count).Error
-	//
-	//if err != nil {
-	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-	//	return
-	//}
-	//
-	//if count > 0 {
-	//	c.JSON(http.StatusBadRequest, gin.H{"error": "Referral bonus already processed for this user"})
-	//	return
-	//}
 
 	// Step 6: Calculate and log bonus
 	bonus := deposit.Amount * 0.05
