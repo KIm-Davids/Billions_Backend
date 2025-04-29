@@ -464,57 +464,66 @@ func ProcessReferralBonus(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"error": "Referral bonus already processed", "Referrer_Bonus": referBonus})
 		return
 	}
-	if existingBonus.TransactionProcessed == "" {
 
-		// Step 4: Get the latest confirmed deposit
-		var deposit models.Deposit
-		if err := initializers.DB.
-			Where("email = ? AND status = ?", req.Email, "confirmed").
-			Order("created_at desc").
-			First(&deposit).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposits found"})
-			return
-		}
+	// Check if a bonus ALREADY exists for this referrer + referred user
+	var count int64
+	initializers.DB.Model(&models.ReferralBonus{}).
+		Where("referrer_id = ? AND referred_id = ?", referredUser.ReferredBy, referredUser.ReferID).
+		Count(&count)
 
-		// Step 5: Find the referrer
-		var referrer models.User
-		if err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
-			return
-		}
-
-		err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			// Only return if it's a real database error
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Referrer not found"})
-			return
-		}
-
-		// Step 6: Calculate and log bonus
-		bonus := deposit.Amount * 0.05
-
-		referralBonus := models.ReferralBonus{
-			Email:                referrer.Email, // Now correctly logged under the referrer's email
-			ReferrerID:           referrer.ReferID,
-			ReferredID:           referredUser.ReferID,
-			Amount:               bonus,
-			RewardedAt:           time.Now(),
-			Processed:            "true",
-			TransactionProcessed: "true",
-			CreatedAt:            time.Now(),
-			Balance:              bonus,
-		}
-
-		if err := initializers.DB.Create(&referralBonus).Error; err != nil {
-			log.Println("Failed to create referral bonus:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Logged referral bonus successfully",
-		})
+	if count > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Referral bonus already processed for this user"})
+		return
 	}
+
+	// Step 4: Get the latest confirmed deposit
+	var deposit models.Deposit
+	if err := initializers.DB.
+		Where("email = ? AND status = ?", req.Email, "confirmed").
+		Order("created_at desc").
+		First(&deposit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No confirmed deposits found"})
+		return
+	}
+
+	// Step 5: Find the referrer
+	var referrer models.User
+	if err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Referrer not found"})
+		return
+	}
+
+	err := initializers.DB.Where("refer_id = ?", referredUser.ReferredBy).First(&referrer).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		// Only return if it's a real database error
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Referrer not found"})
+		return
+	}
+
+	// Step 6: Calculate and log bonus
+	bonus := deposit.Amount * 0.05
+
+	referralBonus := models.ReferralBonus{
+		Email:                referrer.Email, // Now correctly logged under the referrer's email
+		ReferrerID:           referrer.ReferID,
+		ReferredID:           referredUser.ReferID,
+		Amount:               bonus,
+		RewardedAt:           time.Now(),
+		Processed:            "true",
+		TransactionProcessed: "true",
+		CreatedAt:            time.Now(),
+		Balance:              bonus,
+	}
+
+	if err := initializers.DB.Create(&referralBonus).Error; err != nil {
+		log.Println("Failed to create referral bonus:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log referral bonus"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logged referral bonus successfully",
+	})
 }
 
 //func FundReferrerBonus(c *gin.Context) {
