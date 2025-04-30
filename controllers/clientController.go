@@ -450,23 +450,20 @@ func ProcessReferralBonus(c *gin.Context) {
 		return
 	}
 
-	// Step 3: Check if referral bonus was already given and processed
 	var existingBonus models.ReferralBonus
-	var referBonus float64
-	if err := initializers.DB.
-		Where("referrer_id = ? AND referred_id = ? AND transaction_processed = ? ", referredUser.ReferredBy, referredUser.ReferID, "true").
-		First(&existingBonus).Error; err == nil {
-		return
-	}
-
-	if existingBonus.TransactionProcessed == "true" {
-		referBonus += existingBonus.Balance
-		c.JSON(http.StatusOK, gin.H{"error": "Referral bonus already processed", "Referrer_Bonus": referBonus})
-		return
-	}
 
 	if existingBonus.TransactionProcessed == "withdrawn" {
 		c.JSON(http.StatusConflict, gin.H{"message": "Already withdrawn referral bonus"})
+		return
+	}
+
+	// Step 3: Check if referral bonus was already given and processed
+	var referBonus float64
+	if err := initializers.DB.
+		Where("referrer_id = ? AND referred_id = ? AND transaction_processed = ?", referredUser.ReferredBy, referredUser.ReferID, "true").
+		First(&existingBonus).Error; err == nil {
+		referBonus += existingBonus.Balance
+		c.JSON(http.StatusOK, gin.H{"error": "Referral bonus already processed", "Referrer_Bonus": referBonus})
 		return
 	}
 
