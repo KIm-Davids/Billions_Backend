@@ -1026,7 +1026,7 @@ func WithdrawReferralBonus(c *gin.Context) {
 
 	// Step 2: Update only that one record
 	bonus.Total = newTotal
-	bonus.TransactionProcessed = "withdrawn"
+	//bonus.TransactionProcessed = "withdrawn"
 
 	if err := initializers.DB.Save(&bonus).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update referral bonus"})
