@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -970,68 +971,134 @@ func ProcessReferralWithdrawal(c *gin.Context) {
 	}
 }
 
-func WithdrawReferralBonus(c *gin.Context) {
+//func WithdrawReferralBonus(c *gin.Context) {
+//	var req struct {
+//		Email         string  `json:"email"`
+//		DeductedBonus float64 `json:"deductedBonus"` // 👈 bonus after withdrawal
+//	}
+//
+//	var existingReferralBonus models.ReferralBonus
+//
+//	// Check if any record has "transaction_processed" = "withdrawn" for this email
+//	err := initializers.DB.Where("email = ? AND transaction_processed = ?", req.Email, "withdrawn").First(&existingReferralBonus).Error
+//	if err == nil {
+//		// Found a record => block the operation
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Referral bonus already withdrawn"})
+//		return
+//	} else if err != gorm.ErrRecordNotFound {
+//		// Some other DB error
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+//		return
+//	}
+//
+//	// Step 1: Fetch the total balance for the user
+//	var totalBalance float64
+//	if err := initializers.DB.Model(&models.ReferralBonus{}).
+//		Where("email = ?", req.Email).
+//		Select("COALESCE(SUM(balance), 0)"). // 🔥 important to prevent NULL
+//		Scan(&totalBalance).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch total referral balance"})
+//		return
+//	}
+//
+//	// Step 2: Calculate the new total
+//	newTotal := totalBalance - req.DeductedBonus
+//	if newTotal < 0 {
+//		newTotal = 0 // prevent negative totals
+//	}
+//
+//	if err := c.ShouldBindJSON(&req); err != nil {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+//		return
+//	}
+//
+//	// Update the user's referral bonus
+//	// Step 1: Find the first matching ReferralBonus where transaction_processed = "true"
+//	var bonus models.ReferralBonus
+//	if err := initializers.DB.Where("email = ? AND transaction_processed = ?", req.Email, "true").
+//		First(&bonus).Error; err != nil {
+//		if err == gorm.ErrRecordNotFound {
+//			c.JSON(http.StatusNotFound, gin.H{"error": "No pending referral bonus found"})
+//			return
+//		}
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching referral bonus"})
+//		return
+//	}
+//
+//	// Step 2: Update only that one record
+//	bonus.Total = newTotal
+//	//bonus.TransactionProcessed = "withdrawn"
+//
+//	if err := initializers.DB.Save(&bonus).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update referral bonus"})
+//		return
+//	}
+//
+//	c.JSON(http.StatusOK, gin.H{"message": "Referral bonus updated successfully!"})
+//}
+
+func DeductReferralBonusAmount(c *gin.Context) {
 	var req struct {
-		Email         string  `json:"email"`
-		DeductedBonus float64 `json:"deductedBonus"` // 👈 bonus after withdrawal
+		Email  string  `json:"email"`
+		Amount float64 `json:"amount"`
 	}
 
-	var existingReferralBonus models.ReferralBonus
-
-	// Check if any record has "transaction_processed" = "withdrawn" for this email
-	err := initializers.DB.Where("email = ? AND transaction_processed = ?", req.Email, "withdrawn").First(&existingReferralBonus).Error
-	if err == nil {
-		// Found a record => block the operation
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Referral bonus already withdrawn"})
-		return
-	} else if err != gorm.ErrRecordNotFound {
-		// Some other DB error
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		return
-	}
-
-	// Step 1: Fetch the total balance for the user
-	var totalBalance float64
-	if err := initializers.DB.Model(&models.ReferralBonus{}).
-		Where("email = ?", req.Email).
-		Select("COALESCE(SUM(balance), 0)"). // 🔥 important to prevent NULL
-		Scan(&totalBalance).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch total referral balance"})
-		return
-	}
-
-	// Step 2: Calculate the new total
-	newTotal := totalBalance - req.DeductedBonus
-	if newTotal < 0 {
-		newTotal = 0 // prevent negative totals
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" || req.Amount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	// Update the user's referral bonus
-	// Step 1: Find the first matching ReferralBonus where transaction_processed = "true"
-	var bonus models.ReferralBonus
-	if err := initializers.DB.Where("email = ? AND transaction_processed = ?", req.Email, "true").
-		First(&bonus).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "No pending referral bonus found"})
+	// Fetch bonuses with available balance
+	var bonuses []models.ReferralBonus
+	if err := initializers.DB.
+		Where("email = ? AND balance > ? AND transaction_processed = ?", req.Email, 0, "true").
+		Order("created_at ASC").
+		Find(&bonuses).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bonuses"})
+		return
+	}
+
+	if len(bonuses) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No bonuses with available balance"})
+		return
+	}
+
+	remaining := req.Amount
+	totalDeducted := 0.0
+
+	for i := range bonuses {
+		if remaining <= 0 {
+			break
+		}
+
+		deduct := math.Min(bonuses[i].Balance, remaining)
+		bonuses[i].Balance -= deduct
+		remaining -= deduct
+		totalDeducted += deduct
+
+		// If fully used, mark as withdrawn
+		if bonuses[i].Balance == 0 {
+			bonuses[i].TransactionProcessed = "withdrawn"
+		}
+
+		// Update the bonus record
+		if err := initializers.DB.Model(&bonuses[i]).Updates(map[string]interface{}{
+			"balance":               bonuses[i].Balance,
+			"transaction_processed": bonuses[i].TransactionProcessed,
+		}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bonus"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error while fetching referral bonus"})
+	}
+
+	if totalDeducted == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to deduct any amount"})
 		return
 	}
 
-	// Step 2: Update only that one record
-	bonus.Total = newTotal
-	//bonus.TransactionProcessed = "withdrawn"
-
-	if err := initializers.DB.Save(&bonus).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update referral bonus"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Referral bonus updated successfully!"})
+	c.JSON(http.StatusOK, gin.H{
+		"message":           "Referral bonus amount deducted",
+		"deducted_amount":   totalDeducted,
+		"undeducted_amount": remaining,
+	})
 }

@@ -77,7 +77,7 @@ func main() {
 	router.POST("/fundReferrer", controllers.ReferBonus)
 	router.POST("/saveWithdrawnAmount", controllers.SaveWithdrawAmount)
 	router.POST("/processReferBonusWithdrawal", controllers.ProcessReferralWithdrawal)
-	router.POST("/withdrawReferBonus", controllers.WithdrawReferralBonus)
+	router.POST("/withdrawReferBonus", controllers.DeductReferralBonusAmount)
 	router.POST("/confirmReferWithdrawal", controllers.ConfirmReferralWithdrawal)
 	router.POST("/rejectReferWithdrawal", controllers.RejectReferralWithdrawal)
 	router.GET("/fetchReferWithdrawal", controllers.FetchPendingReferralBonus)
