@@ -1043,6 +1043,7 @@ func DeductReferralBonusAmount(c *gin.Context) {
 		Amount float64 `json:"amount"`
 	}
 
+	//checking the request to see if it correct
 	if err := c.ShouldBindJSON(&req); err != nil || req.Email == "" || req.Amount <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
