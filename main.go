@@ -37,8 +37,8 @@ func main() {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		//AllowOrigins: []string{"https://www.billionsforextrade.vip", "https://www.billionsforextrade.vip/"},
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins: []string{"https://www.billionsforextrade.vip", "https://www.billionsforextrade.vip/"},
+		//AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -92,10 +92,11 @@ func main() {
 
 	router.Run(":" + port)
 
-	//PORT=8080
-	//SECRETE=ryuye84yr294y746234692734
-	//DATABASE_URL="root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
-
+	//DB_USER=root
+	//DB_PASSWORD=password
+	//DB_HOST=127.0.0.1
+	//DB_PORT=3306
+	//DB_NAME=billions_database
 }
 
 //
