@@ -714,10 +714,11 @@ func GenerateDailyProfits(c *gin.Context) {
 			NetProfitStatus: "profit updated",
 			NewProfit:       profitAmount,
 		}
-		if err := initializers.DB.Create(&newProfit).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store profit"})
-			return
-		}
+
+		//if err := initializers.DB.Create(&newProfit).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"Profit Amount": newProfit})
+		//	return
+		//}
 	}
 
 	if err != gorm.ErrRecordNotFound {
@@ -820,12 +821,14 @@ func GetDailyProfit(c *gin.Context) {
 	}
 
 	// Fetch the user's daily profit from the profit table based on their email and source = "new daily profit"
-	var totalDailyProfit float64
-	if err := initializers.DB.Model(&models.Profit{}).
-		Where("email = ?", req.Email).
-		Select("COALESCE(SUM(new_profit), 0)"). // 👈 here: use COALESCE
-		Scan(&totalDailyProfit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate daily profit"})
+	var latestProfit float64
+	if err := initializers.DB.
+		Table("profits").
+		Where("email = ? AND source = ?", req.Email, "new daily profit").
+		Order("created_at DESC").
+		Limit(1).
+		Pluck("new_profit", &latestProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch latest daily profit"})
 		return
 	}
 
@@ -834,8 +837,8 @@ func GetDailyProfit(c *gin.Context) {
 
 	// Return the total daily profit of the user
 	c.JSON(http.StatusOK, gin.H{
-		"email":        req.Email,
-		"daily_profit": totalDailyProfit,
+		"email":     req.Email,
+		"newProfit": latestProfit,
 	})
 	return
 }

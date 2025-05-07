@@ -37,8 +37,8 @@ func main() {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"https://www.billionsforextrade.vip", "https://www.billionsforextrade.vip/"},
-		//AllowOrigins:     []string{"http://localhost:3000"},
+		//AllowOrigins: []string{"https://www.billionsforextrade.vip", "https://www.billionsforextrade.vip/"},
+		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -81,6 +81,9 @@ func main() {
 	router.POST("/confirmReferWithdrawal", controllers.ConfirmReferralWithdrawal)
 	router.POST("/rejectReferWithdrawal", controllers.RejectReferralWithdrawal)
 	router.GET("/fetchReferWithdrawal", controllers.FetchPendingReferralBonus)
+	router.POST("/add-to-profits", controllers.AdminUpdateUser)
+	router.GET("/fetch/users", controllers.FetchAllUsers)
+	router.GET("/fetch/user-profits", controllers.FetchAllUsers)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -88,38 +91,15 @@ func main() {
 	}
 
 	router.Run(":" + port)
-	//c := cron.New()
 
-	// Run daily at 7 AM
-	//location, _ := time.LoadLocation("Africa/Lagos") // Or your preferred zone
-	//c = cron.New(cron.WithLocation(location))
-	//c.AddFunc("0 7 * * *", controllers.GenerateDailyProfits)
-	//
-	//currentTime := time.Now().In(location)
-	//
-	//// Add 1 minute to the current time to run the job 1 minute ahead
-	//nextRunTime := currentTime.Add(1 * time.Minute)
-	//
-	//// Calculate the cron expression based on nextRunTime
-	//// The cron format is: minute hour day month weekday
-	//cronExpression := fmt.Sprintf("%d %d * * *", nextRunTime.Minute(), nextRunTime.Hour())
-	//
-	//// Add the cron job with the dynamic cron expression
-	//c.AddFunc(cronExpression, controllers.GenerateDailyProfits)
-	//
-	//c.Start()
-	//select {} // keep the program running
+	//PORT=8080
+	//SECRETE=ryuye84yr294y746234692734
+	//DATABASE_URL="root:lAqNzNxCmLbIHKWPfpyeUMbsprDYmMlq@tcp(yamabiko.proxy.rlwy.net:11897)/railway?charset=utf8mb4&parseTime=True&loc=Local"
 
 }
 
 //
 //
-
-//DB_USER=root
-//DB_PASSWORD=password
-//DB_HOST=127.0.0.1
-//DB_PORT=3306
-//DB_NAME=billions_database
 
 //func main() {
 //	router := gin.Default()

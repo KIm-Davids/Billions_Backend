@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func RegisterAdmin(c *gin.Context) {
@@ -601,4 +602,95 @@ func FetchPendingReferralBonus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"pending_withdrawals": pendingWithdrawals,
 	})
+}
+
+func FetchAllUsers(c *gin.Context) {
+	type ProfitEntry struct {
+		NewProfit float64   `json:"newProfit"`
+		CreatedAt time.Time `json:"createdAt"`
+	}
+
+	type UserWithProfits struct {
+		Username   string        `json:"username"`
+		Email      string        `json:"email"`
+		Balance    float64       `json:"balance"`
+		ReferrerId string        `json:"referrerId"`
+		ReferredBy string        `json:"referred_by"`
+		CreatedAt  string        `json:"createdAt"`
+		Profits    []ProfitEntry `json:"profits"`
+	}
+
+	var users []models.User
+
+	if err := initializers.DB.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+	var results []UserWithProfits
+
+	for _, user := range users {
+		var profits []ProfitEntry
+		err := initializers.DB.
+			Table("profits").
+			Select("new_profit, created_at").
+			Where("email = ? AND source = ?", user.Email, "new daily profit").
+			Find(&profits).Error
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch profits for " + user.Email})
+			return
+		}
+
+		results = append(results, UserWithProfits{
+			Username:   user.Username,
+			Email:      user.Email,
+			Balance:    user.Balance,
+			ReferrerId: user.ReferID,
+			ReferredBy: user.ReferredBy,
+			CreatedAt:  user.CreatedAt.Format("2006-01-02 15:04:05"),
+			Profits:    profits,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": results})
+}
+
+func AdminUpdateUser(c *gin.Context) {
+	var req struct {
+		Email     string  `json:"email"`
+		Balance   float64 `json:"balance"`
+		NewProfit float64 `json:"newProfit"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Update balance in users table
+	var user models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Update balance in users table
+	if err := initializers.DB.Model(&user).Update("balance", req.Balance).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+		return
+	}
+
+	var profit models.Profit
+	if err := initializers.DB.
+		Where("email = ?", req.Email).
+		Order("created_at DESC").
+		First(&profit).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Latest profit record not found for user"})
+		return
+	}
+
+	if err := initializers.DB.Model(&profit).Update("new_profit", req.NewProfit).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profit"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "User balance and profit updated successfully"})
 }
