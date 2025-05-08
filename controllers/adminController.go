@@ -727,11 +727,21 @@ func AdminUpdateUser(c *gin.Context) {
 		Order("created_at DESC").
 		First(&profit).Error
 
+	location, _ := time.LoadLocation("Africa/Lagos") // or your server's TZ
+	//today := time.Now().In(location).Truncate(24 * time.Hour)
+	currentTime := time.Now().In(location)
+	today := currentTime.Format("2006-01-02")
+
 	if err != nil {
 		// If not found, create a new profit record
 		newProfit := models.Profit{
-			Email:     req.Email,
-			NewProfit: req.NewProfit,
+			Email:           req.Email,
+			NewProfit:       req.NewProfit,
+			Source:          "new daily profit",
+			NetProfitStatus: "profit updated",
+			ProfitDate:      today,
+			CreatedAt:       currentTime,
+			Date:            currentTime,
 		}
 		if err := initializers.DB.Create(&newProfit).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create new profit record"})
