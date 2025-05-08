@@ -654,6 +654,47 @@ func FetchAllUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"users": results})
 }
 
+//func AdminUpdateUser(c *gin.Context) {
+//	var req struct {
+//		Email     string  `json:"email"`
+//		Balance   float64 `json:"balance"`
+//		NewProfit float64 `json:"newProfit"`
+//	}
+//
+//	if err := c.ShouldBindJSON(&req); err != nil {
+//		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+//		return
+//	}
+//
+//	// Update balance in users table
+//	var user models.User
+//	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+//		return
+//	}
+//
+//	// Update balance in users table
+//	if err := initializers.DB.Model(&user).Update("balance", req.Balance).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
+//		return
+//	}
+//
+//	var profit models.Profit
+//	if err := initializers.DB.
+//		Where("email = ?", req.Email).
+//		Order("created_at DESC").
+//		First(&profit).Error; err != nil {
+//		c.JSON(http.StatusNotFound, gin.H{"error": "Latest profit record not found for user"})
+//		return
+//	}
+//
+//	if err := initializers.DB.Model(&profit).Update("new_profit", req.NewProfit).Error; err != nil {
+//		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profit"})
+//		return
+//	}
+//	c.JSON(http.StatusOK, gin.H{"message": "User balance and profit updated successfully"})
+//}
+
 func AdminUpdateUser(c *gin.Context) {
 	var req struct {
 		Email     string  `json:"email"`
@@ -666,31 +707,45 @@ func AdminUpdateUser(c *gin.Context) {
 		return
 	}
 
-	// Update balance in users table
+	// Find the user
 	var user models.User
 	if err := initializers.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	// Update balance in users table
+	// Update user's balance
 	if err := initializers.DB.Model(&user).Update("balance", req.Balance).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user balance"})
 		return
 	}
 
+	// Try to find latest profit
 	var profit models.Profit
-	if err := initializers.DB.
+	err := initializers.DB.
 		Where("email = ?", req.Email).
 		Order("created_at DESC").
-		First(&profit).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Latest profit record not found for user"})
+		First(&profit).Error
+
+	if err != nil {
+		// If not found, create a new profit record
+		newProfit := models.Profit{
+			Email:     req.Email,
+			NewProfit: req.NewProfit,
+		}
+		if err := initializers.DB.Create(&newProfit).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create new profit record"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "User balance updated and new profit record created"})
 		return
 	}
 
+	// If found, update the existing profit
 	if err := initializers.DB.Model(&profit).Update("new_profit", req.NewProfit).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profit"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update existing profit record"})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "User balance and profit updated successfully"})
 }
